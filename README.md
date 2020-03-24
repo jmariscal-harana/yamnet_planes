@@ -61,4 +61,4 @@ If you want to improve the model...
 
 
 ## Contact information
-```This repository is maintained by [Jorge Mariscal Harana](https://github.com/jmariscal-harana).```
+This repository is maintained by [Jorge Mariscal Harana](https://github.com/jmariscal-harana).
