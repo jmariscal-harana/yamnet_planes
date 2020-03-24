@@ -1,5 +1,5 @@
 # yamnet_planes: small airplane detection from sound
-This model is based on Google's YAMNet pretrained deep network, and it has been modified to detect small airplane sounds in real time. The original repository can be found at https://github.com/tensorflow/models/tree/master/research/audioset/yamnet.
+This model is based on Google's YAMNet pretrained deep network, and it has been modified to detect small airplane sounds in real time. The original repository can be found at: https://github.com/tensorflow/models/tree/master/research/audioset/yamnet.
 
 
 ## File and folder description (24/03/2020)
