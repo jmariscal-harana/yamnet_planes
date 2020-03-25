@@ -21,6 +21,9 @@ sess=tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 #physical_devices = tf.config.experimental.list_physical_devices('GPU')
 #tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
+# OPTION 4: ???
+#Slim/embedded versions: (https://github.com/google-research/tf-slim)
+
 print("tf version: ", tf.__version__)
 print("tf.keras version: ", tf.keras.__version__)
 
