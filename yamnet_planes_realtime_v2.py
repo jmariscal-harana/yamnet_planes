@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
-# ???
+# Decide what type of messages are displayed by TensorFlow (ERROR, WARN, INFO, DEBUG, FATAL)
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 
@@ -32,6 +32,7 @@ print("tf.keras version: ", tf.keras.__version__)
 import os, sys
 
 path_root = '/home/catec/Models/yamnet_planes/' #path to main folder
+# path_root = input("Enter the path of your repository: ") # ask user for path_root
 assert os.path.exists(path_root)
 sys.path.append(path_root)
 
@@ -40,27 +41,19 @@ assert os.path.exists(path_yamnet_original)
 sys.path.append(path_yamnet_original)
 
 
-## Import/specify parameters
+## Modified YAMNet model for feature extraction
+import modified_yamnet as yamnet_modified
 import params
 
-params.PATCH_HOP_SECONDS = 0.1  #10 Hz scores frame rate.
+params.PATCH_HOP_SECONDS = 0.1 #low values: higher accuracy but higher computational cost
 
-DESIRED_SR = 16000
-NUM_CLASSES = 2 #["not plane", "plane"]
-categories = ["not plane", "plane"]
-frame_len = int(params.SAMPLE_RATE * 1) # 1sec
-
-
-## Import modified YAMNet model for feature extraction
-import modified_yamnet as yamnet_modified
-
-yamnet_features, dense_net = yamnet_modified.yamnet_frames_model(params)
+yamnet_features, _ = yamnet_modified.yamnet_frames_model(params)
 yamnet_features.load_weights(path_root+'yamnet.h5')
 
 
-## Load YAMNet 
-from tensorflow.keras.optimizers import SGD, Adam
+## Load yamnet_planes model
 from tensorflow.keras.models import load_model
+from tensorflow.keras.optimizers import SGD, Adam
 
 yamnet_planes = load_model(path_root+'top_model_v2.h5')
 opt = SGD(lr=0.001, decay=1e-6, momentum=0.9, nesterov=True)
@@ -93,6 +86,13 @@ def run_models(waveform,
 
     all_scores = np.mean(all_scores, axis=0)
     return all_scores
+
+
+## Specify feature extraction parameters
+import params
+NUM_CLASSES = 2 #["not plane", "plane"]
+categories = ["not plane", "plane"]
+frame_len = int(params.SAMPLE_RATE * 1) # 1sec
 
 
 ## Start recording from microphone
