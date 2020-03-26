@@ -1,19 +1,11 @@
-import sys, os
-#yamnet_base = '/home/catec/Models/yamnet_planes/yamnet_base/'
-#sys.path.append(yamnet_base)
-#assert os.path.exists(yamnet_base)
-
-# yamnet imports 
+# imports 
 import params
 import features as features_lib
 
 # TF / keras 
 import tensorflow as tf
 from tensorflow.keras import Model, layers
-
-
 from yamnet import _YAMNET_LAYER_DEFS
-
 
 
 def yamnet(features):
@@ -28,11 +20,11 @@ def yamnet(features):
   predictions = layers.Activation(
     name=params.EXAMPLE_PREDICTIONS_LAYER_NAME,
     activation=params.CLASSIFIER_ACTIVATION)(logits)
-  return predictions, net
+  return net, predictions
 
 
 def yamnet_frames_model(feature_params):
-  """Defines the YAMNet waveform-to-class-scores model.
+  """Define the YAMNet waveform-to-class-scores model.
 
   Args:
     feature_params: An object with parameter fields to control the feature
@@ -49,7 +41,8 @@ def yamnet_frames_model(feature_params):
   spectrogram = features_lib.waveform_to_log_mel_spectrogram(
     tf.squeeze(waveform, axis=0), feature_params)
   patches = features_lib.spectrogram_to_patches(spectrogram, feature_params)
-  predictions, net = yamnet(patches)
+  net, predictions = yamnet(patches)
   frames_model = Model(name='yamnet_frames', 
-                       inputs=waveform, outputs=[predictions, spectrogram, net, patches])
-  return frames_model, net
+                       inputs=waveform, outputs=[spectrogram, patches, net, predictions])
+  # return frames_model, net
+  return frames_model
