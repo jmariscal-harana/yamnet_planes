@@ -45,9 +45,9 @@ sys.path.append(path_yamnet_original)
 import modified_yamnet as yamnet_modified
 import params
 
-params.PATCH_HOP_SECONDS = 0.1 #low values: higher accuracy but higher computational cost
+params.PATCH_HOP_SECONDS = 0.48 #low values: higher accuracy but higher computational cost
 
-yamnet_features, _ = yamnet_modified.yamnet_frames_model(params)
+yamnet_features = yamnet_modified.yamnet_frames_model(params)
 yamnet_features.load_weights(path_root+'yamnet.h5')
 
 
@@ -75,13 +75,12 @@ def run_models(waveform,
         print("input too short after silence removal")
         return [-1] #this value will be used to discard unfit audios later
     
-    _, _, dense_out, _ = \
-        yamnet_features.predict(np.reshape(waveform, [1, -1]), steps=1)
+    _, _, dense_out, _ = yamnet_features.predict(np.reshape(waveform, [1, -1]), steps=1)
     
     # dense = (N, 1024)
     all_scores = []
     for patch in dense_out:
-        scores = top_model.predict( np.expand_dims(patch,0)).squeeze()
+        scores = top_model.predict(np.expand_dims(patch,0)).squeeze()
         all_scores.append(scores)
 
     all_scores = np.mean(all_scores, axis=0)

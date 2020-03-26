@@ -44,5 +44,4 @@ def yamnet_frames_model(feature_params):
   net, predictions = yamnet(patches)
   frames_model = Model(name='yamnet_frames', 
                        inputs=waveform, outputs=[spectrogram, patches, net, predictions])
-  # return frames_model, net
   return frames_model

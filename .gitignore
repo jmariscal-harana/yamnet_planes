@@ -38,3 +38,4 @@ Thumbs.db
 
 # Custom
 __pycache__/
+.vscode/
