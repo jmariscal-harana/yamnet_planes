@@ -53,11 +53,11 @@ input waveform to get the first frame of output scores.)
 
 
 ## Training
-If you want to improve the model...
+If you want to improve the model, try `yamnet_planes_train.ipynb` with your own data ...
 
 
 ## Performance
-...
+TBC ...
 
 
 ## Contact information
