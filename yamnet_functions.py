@@ -43,11 +43,13 @@ def remove_silence(waveform, top_db=15, min_chunk_size=2000, merge_chunks=True):
     
     return waves
 
+import os 
+
 def get_top_dirs(p):
     dirs = list(filter(lambda x : os.path.isdir( os.path.join(p, x) ), os.listdir(p)))
     return list(map(lambda x : os.path.join(p, x), dirs))
 
-def random_augment_wav(wav_data):
+def random_augment_wav(wav_data, DESIRED_SR):
     # apply some random augmentations to the sound
     # - time stretch, resample, volume change, minor noise 
     # - this has not been evaluated to measure contributions
@@ -83,7 +85,8 @@ def load_data(data_path,
               yamnet_features, 
               num_augmentations=5,
               max_sample_seconds=5.0,
-              use_rosa=True):
+              use_rosa=True,
+              DESIRED_SR=16000):
     """
     Loads data from .wav files contained in subfolders where 
     folder name is label, then runs them 
@@ -131,7 +134,7 @@ def load_data(data_path,
                     aug_wav = waveform.copy()
                     
                     if aug_idx > 0:
-                        aug_wav = random_augment_wav(aug_wav)
+                        aug_wav = random_augment_wav(aug_wav, DESIRED_SR)
 
                     _, _, dense_out, _ = yamnet_features.predict(np.reshape(aug_wav, [1, -1]), steps=1)
                     

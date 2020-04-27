@@ -13,30 +13,35 @@
 # limitations under the License.
 # ==============================================================================
 
-"""Feature computation for YAMNet."""
+"""Feature computation for YAMNet"""
 
 import numpy as np
 import tensorflow as tf
 
 
-def waveform_to_log_mel_spectrogram(waveform, params):
-  """Compute log mel spectrogram of a 1-D waveform."""
-  with tf.name_scope('log_mel_features'):
-    # waveform has shape [<# samples>]
-
+def waveform_to_log_mel_spectrogram(waveform, params, print_on=0):
+  """Compute log-mel spectrogram of a 1-D waveform."""
+  with tf.name_scope('log_mel_features'): #context manager which adds "log_mel_features" to the name of each tensor
     # Convert waveform into spectrogram using a Short-Time Fourier Transform.
     # Note that tf.signal.stft() uses a periodic Hann window by default.
     stft_window_length = int(round(params.SAMPLE_RATE * params.STFT_WINDOW_SECONDS)) #STFT window length
     stft_hop_length = int(round(params.SAMPLE_RATE * params.STFT_HOP_SECONDS)) #STFT hop length
     fft_length = 2 ** int(np.ceil(np.log(stft_window_length) / np.log(2.0))) #FFT size = smallest power of 2 enclosing stft_window_length
-
     num_spectrogram_bins = fft_length // 2 + 1
+
+    if print_on:
+      print("SPECTROGRAM PARAMETERS:")
+      print("stft_window_length:",stft_window_length)
+      print("stft_hop_length:",stft_hop_length)
+      print("fft_length:",fft_length)
+      print("num_spectrogram_bins:",num_spectrogram_bins,"\n")
+
     magnitude_spectrogram = tf.abs(tf.signal.stft(
       signals=waveform,
       frame_length=stft_window_length,
       frame_step=stft_hop_length,
       fft_length=fft_length)) # magnitude_spectrogram has shape [<# STFT frames>, num_spectrogram_bins]
-
+    
     # Convert spectrogram into log mel spectrogram.
     linear_to_mel_weight_matrix = tf.signal.linear_to_mel_weight_matrix(
       num_mel_bins=params.MEL_BANDS,
@@ -49,7 +54,7 @@ def waveform_to_log_mel_spectrogram(waveform, params):
     log_mel_spectrogram = tf.math.log(mel_spectrogram + params.LOG_OFFSET)
     # log_mel_spectrogram has shape [<# STFT frames>, MEL_BANDS]
 
-    return log_mel_spectrogram
+    return log_mel_spectrogram, magnitude_spectrogram
 
 
 def spectrogram_to_patches(spectrogram, params):
