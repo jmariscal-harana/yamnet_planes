@@ -42,7 +42,7 @@ def waveform_to_log_mel_spectrogram(waveform, params, print_on=0):
       frame_step=stft_hop_length,
       fft_length=fft_length)) # magnitude_spectrogram has shape [<# STFT frames>, num_spectrogram_bins]
     
-    # Convert spectrogram into log mel spectrogram.
+    # Convert spectrogram into log-mel spectrogram.
     linear_to_mel_weight_matrix = tf.signal.linear_to_mel_weight_matrix(
       num_mel_bins=params.MEL_BANDS,
       num_spectrogram_bins=num_spectrogram_bins,
@@ -50,28 +50,34 @@ def waveform_to_log_mel_spectrogram(waveform, params, print_on=0):
       lower_edge_hertz=params.MEL_MIN_HZ,
       upper_edge_hertz=params.MEL_MAX_HZ)
     mel_spectrogram = tf.matmul(
-      magnitude_spectrogram, linear_to_mel_weight_matrix)
+      magnitude_spectrogram, 
+      linear_to_mel_weight_matrix)
     log_mel_spectrogram = tf.math.log(mel_spectrogram + params.LOG_OFFSET)
     # log_mel_spectrogram has shape [<# STFT frames>, MEL_BANDS]
 
     return log_mel_spectrogram, magnitude_spectrogram
 
 
-def spectrogram_to_patches(spectrogram, params):
-  """Break up a spectrogram into a stack of fixed-size patches."""
+def spectrogram_to_patches(spectrogram, params, print_on=0):
+  """Break up any kind of spectrogram into a stack of fixed-size patches"""
   with tf.name_scope('feature_patches'):
-    # Frame spectrogram (shape [<# STFT frames>, MEL_BANDS]) into patches 
+    # Frame spectrogram (shape [<# STFT frames>, MEL_BANDS]) into patches
     # (the input examples).
     # Only complete frames are emitted, so if there is less than 
     # PATCH_WINDOW_SECONDS of waveform then nothing is emitted 
     # (to avoid this, zero-pad before processing).
-    hop_length_samples = int(
-      round(params.SAMPLE_RATE * params.STFT_HOP_SECONDS))
-    spectrogram_sr = params.SAMPLE_RATE / hop_length_samples
-    patch_window_length_samples = int(
-      round(spectrogram_sr * params.PATCH_WINDOW_SECONDS))
-    patch_hop_length_samples = int(
-      round(spectrogram_sr * params.PATCH_HOP_SECONDS))
+    hop_length_samples = int(round(params.SAMPLE_RATE * params.STFT_HOP_SECONDS))
+    spectrogram_sr = int(round(params.SAMPLE_RATE / hop_length_samples))
+    patch_window_length_samples = int(round(spectrogram_sr * params.PATCH_WINDOW_SECONDS))
+    patch_hop_length_samples = int(round(spectrogram_sr * params.PATCH_HOP_SECONDS))
+    
+    if print_on:
+      print("hop_length_samples:", hop_length_samples)
+      print("spectrogram_sr:", spectrogram_sr)
+      print("patch_window_length_samples:", patch_window_length_samples)
+      print("params.PATCH_HOP_SECONDS:", params.PATCH_HOP_SECONDS)
+      print("patch_hop_length_samples", patch_hop_length_samples)
+    
     features = tf.signal.frame(
       signal=spectrogram,
       frame_length=patch_window_length_samples,

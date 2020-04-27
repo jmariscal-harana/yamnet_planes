@@ -21,7 +21,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import Model, layers
 
-import yamnet_original.features as features_lib
+import yamnet_original.features as features
 import yamnet_original.params as params
 
 
@@ -123,9 +123,9 @@ def yamnet_frames_model(feature_params):
   """
   waveform = layers.Input(batch_shape=(1, None))
   # Store the intermediate spectrogram features to use in visualization.
-  spectrogram = features_lib.waveform_to_log_mel_spectrogram(
+  spectrogram = features.waveform_to_log_mel_spectrogram(
     tf.squeeze(waveform, axis=0), feature_params)
-  patches = features_lib.spectrogram_to_patches(spectrogram, feature_params)
+  patches = features.spectrogram_to_patches(spectrogram, feature_params)
   predictions = yamnet(patches)
   frames_model = Model(name='yamnet_frames', 
                        inputs=waveform, outputs=[predictions, spectrogram])

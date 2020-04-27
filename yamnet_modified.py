@@ -1,6 +1,6 @@
 # imports 
 import yamnet_original.params as params
-import yamnet_original.features as features_lib
+import yamnet_original.features as features
 from yamnet_original.yamnet import _YAMNET_LAYER_DEFS
 
 # TF / keras 
@@ -23,11 +23,11 @@ def yamnet(features):
   return net, predictions
 
 
-def yamnet_frames_model(feature_params):
+def yamnet_frames_model(params):
   """Define the YAMNet waveform-to-class-scores model.
 
   Args:
-    feature_params: An object with parameter fields to control the feature
+    params: An object with parameter fields to control the feature
     calculation.
 
   Returns:
@@ -38,9 +38,9 @@ def yamnet_frames_model(feature_params):
   """
   waveform = layers.Input(batch_shape=(1, None))
   # Store the intermediate spectrogram features to use in visualization.
-  log_mel_spectrogram, _ = features_lib.waveform_to_log_mel_spectrogram(
-    tf.squeeze(waveform, axis=0), feature_params)
-  patches = features_lib.spectrogram_to_patches(log_mel_spectrogram, feature_params)
+  log_mel_spectrogram, _ = features.waveform_to_log_mel_spectrogram(
+    tf.squeeze(waveform, axis=0), params)
+  patches = features.spectrogram_to_patches(log_mel_spectrogram, params)
   net, predictions = yamnet(patches)
   frames_model = Model(name='yamnet_frames', 
                        inputs=waveform, outputs=[log_mel_spectrogram, patches, net, predictions])
