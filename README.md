@@ -8,7 +8,7 @@ This model is based on Google's YAMNet pretrained deep network, and it has been 
   - `params.py`: hyperparameter list
   - `features.py`: audio feature extraction functions
 - `modified_yamnet.py`: modified version of `yamnet.py` which outputs the network up to and including the 'global average pooling' layer
-- `yamnet_planes_realtime_v2.py`: real-time inference from microphone feed
+- `yamnet_planes_realtime.py`: real-time inference from microphone feed
 
 
 ## Install Python3 dependencies 
