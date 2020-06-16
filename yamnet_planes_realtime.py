@@ -6,7 +6,6 @@ import tensorflow as tf
 # Decide what type of messages are displayed by TensorFlow (ERROR, WARN, INFO, DEBUG, FATAL)
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
-
 ## TensorFlow memory allocation options:
 # OPTION 1: "smart" allocation
 #config=tf.ConfigProto()
@@ -14,8 +13,13 @@ tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 #sess=tf.Session(config=config) 
 
 # OPTION 2: maximum memory allocation per session (0-1 = 0-100%)
-gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.05)
-sess=tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+tf_ver = tf.__version__
+if tf_ver[0] == "1":
+    gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.05)
+    sess=tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+elif tf_ver[0] == "2":
+    gpu_options=tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.05)
+    sess=tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(gpu_options=gpu_options))
 
 # OPTION 3: ???
 #physical_devices = tf.config.experimental.list_physical_devices('GPU')
@@ -31,7 +35,7 @@ print("tf.keras version: ", tf.keras.__version__)
 ## Add/append required paths
 import os, sys
 
-path_root = '/home/catec/Models/yamnet_planes/' #path to main folder
+path_root = '/home/anakin/Models/yamnet_planes/' #path to main folder
 # path_root = input("Enter the path of your repository: ") # ask user for path_root
 assert os.path.exists(path_root)
 sys.path.append(path_root)
@@ -42,7 +46,7 @@ sys.path.append(path_yamnet_original)
 
 
 ## Modified YAMNet model for feature extraction
-import modified_yamnet as yamnet_modified
+import yamnet_modified as yamnet_modified
 import params
 
 params.PATCH_HOP_SECONDS = 0.48 #low values: higher accuracy but higher computational cost
