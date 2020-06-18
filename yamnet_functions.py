@@ -167,3 +167,14 @@ def run_models(waveform,
         
     all_scores = np.mean(all_scores, axis=0)
     return all_scores
+
+# Listen to audio function (workaround for vscode)
+import scipy.io.wavfile, vlc, os
+
+def play_audio(file_tmp,sr,waveform):
+    scipy.io.wavfile.write(file_tmp, sr, waveform)
+    for audio in [file_tmp]:
+        p = vlc.MediaPlayer(audio)
+        p.play()
+        print()
+    os.remove(audio)
