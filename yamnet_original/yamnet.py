@@ -13,14 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-"""Core model definition of YAMNet."""
-
+"""Original YAMNet model"""
 import csv
-
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import Model, layers
-
 import yamnet_original.features as features
 import yamnet_original.params as params
 
@@ -94,7 +91,14 @@ _YAMNET_LAYER_DEFS = [
 
 
 def yamnet(features):
-  """Define the core YAMNet mode in Keras."""
+  """Core YAMNet model in Keras
+    
+  Args:
+    features: input image
+
+  Returns:
+    predictions: output prediction for each class and time frame
+  """  
   net = layers.Reshape(
     (params.PATCH_FRAMES, params.PATCH_BANDS, 1),
     input_shape=(params.PATCH_FRAMES, params.PATCH_BANDS))(features)
@@ -109,17 +113,18 @@ def yamnet(features):
 
 
 def yamnet_frames_model(feature_params):
-  """Defines the YAMNet waveform-to-class-scores model.
+  """YAMNet waveform-to-class-scores model
 
   Args:
-    feature_params: An object with parameter fields to control the feature
-    calculation.
+    feature_params: parameters for feature calculation
 
   Returns:
-    A model accepting (1, num_samples) waveform input and emitting a
-    (num_patches, num_classes) matrix of class scores per time frame as
-    well as a (num_spectrogram_frames, num_mel_bins) spectrogram feature
-    matrix.
+    frames_model:
+      Input:
+        waveform (1, num_samples)
+      Output:
+        class scores per time frame matrix (num_patches, num_classes)
+        log-scaled mel spectrogram (num_spectrogram_frames, num_mel_bins)
   """
   waveform = layers.Input(batch_shape=(1, None))
   # Store the intermediate spectrogram features to use in visualization.

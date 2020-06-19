@@ -13,14 +13,19 @@
 # limitations under the License.
 # ==============================================================================
 
-"""Feature computation for YAMNet"""
+"""Feature computation for YAMNet
 
+Functions:
+  waveform_to_log_mel_spectrogram: input a waveform and output a log-scaled mel spectrogram
+
+  spectrogram_to_patches: input a log-scaled mel spectrogram and output the final image (patches/features) to be analysed
+"""
 import numpy as np
 import tensorflow as tf
 
 
 def waveform_to_log_mel_spectrogram(waveform, params, print_on=0):
-  """Compute log-mel spectrogram of a 1-D waveform."""
+  """Compute log-scaled mel spectrogram of a 1-D waveform."""
   with tf.name_scope('log_mel_features'): #context manager which adds "log_mel_features" to the name of each tensor
     # Convert waveform into spectrogram using a Short-Time Fourier Transform.
     # Note that tf.signal.stft() uses a periodic Hann window by default.
