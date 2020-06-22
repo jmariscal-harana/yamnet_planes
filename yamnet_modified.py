@@ -9,7 +9,15 @@ from tensorflow.keras import Model, layers
 
 
 def yamnet(features):
-  """Define the core YAMNet model in Keras."""
+  """Modified core YAMNet model (feature extraction only)
+
+  Args:
+    features: input image
+
+  Returns:
+    net: network configuration including the final global average pooling layer
+    predictions (NOT USED): class scores per time frame matrix from original YAMNet
+  """  
   net = layers.Reshape(
     (params.PATCH_FRAMES, params.PATCH_BANDS, 1),
     input_shape=(params.PATCH_FRAMES, params.PATCH_BANDS))(features)
@@ -27,14 +35,17 @@ def yamnet_frames_model(params):
   """Define the YAMNet waveform-to-class-scores model.
 
   Args:
-    params: An object with parameter fields to control the feature
-    calculation.
+    params: parameters for feature calculation
 
   Returns:
-    A model accepting (1, num_samples) waveform input and emitting a
-    (num_patches, num_classes) matrix of class scores per time frame as
-    well as a (num_spectrogram_frames, num_mel_bins) log-mel spectrogram feature
-    matrix.
+    frames_model:
+      Input:
+        waveform: input waveform (1, num_samples)
+      Output:
+        log_mel_spectrogram: log-scaled mel spectrogram (num_spectrogram_frames, num_mel_bins)
+        patches: image to be analysed
+        net: network configuration including the final global average pooling layer
+        predictions (NOT USED): class scores per time frame matrix from original YAMNet
   """
   waveform = layers.Input(batch_shape=(1, None))
   # Store the intermediate spectrogram features to use in visualization.

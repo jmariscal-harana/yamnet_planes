@@ -112,25 +112,25 @@ def yamnet(features):
   return predictions
 
 
-def yamnet_frames_model(feature_params):
+def yamnet_frames_model(params):
   """YAMNet waveform-to-class-scores model
 
   Args:
-    feature_params: parameters for feature calculation
+    params: parameters for feature calculation
 
   Returns:
     frames_model:
       Input:
-        waveform (1, num_samples)
+        waveform: input waveform (1, num_samples)
       Output:
-        class scores per time frame matrix (num_patches, num_classes)
-        log-scaled mel spectrogram (num_spectrogram_frames, num_mel_bins)
+        predictions: class scores per time frame matrix (num_patches, num_classes)
+        spectrogram: log-scaled mel spectrogram (num_spectrogram_frames, num_mel_bins)
   """
   waveform = layers.Input(batch_shape=(1, None))
   # Store the intermediate spectrogram features to use in visualization.
-  spectrogram = features.waveform_to_log_mel_spectrogram(
-    tf.squeeze(waveform, axis=0), feature_params)
-  patches = features.spectrogram_to_patches(spectrogram, feature_params)
+  spectrogram, _ = features.waveform_to_log_mel_spectrogram(
+    tf.squeeze(waveform, axis=0), params)
+  patches = features.spectrogram_to_patches(spectrogram, params)
   predictions = yamnet(patches)
   frames_model = Model(name='yamnet_frames', 
                        inputs=waveform, outputs=[predictions, spectrogram])

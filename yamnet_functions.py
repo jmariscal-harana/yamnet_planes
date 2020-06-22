@@ -103,9 +103,8 @@ def load_data(data_path,
     _samples = []
     _labels = []
     
-    merge_chunks = True
     MIN_WAV_SIZE = 5000 #
-    max_wav_size = int(DESIRED_SR * max_sample_seconds)
+    MAX_WAV_SIZE = int(DESIRED_SR * max_sample_seconds)
     
     for label_idx, label_dir in enumerate(label_dirs):
         
@@ -125,8 +124,8 @@ def load_data(data_path,
                 if len(waveform) < MIN_WAV_SIZE:
                     continue 
 
-                if len(waveform) > max_wav_size:
-                    waveform = waveform[:max_wav_size]
+                if len(waveform) > MAX_WAV_SIZE:
+                    waveform = waveform[:MAX_WAV_SIZE]
                     print("\nIgnoring audio data after {} seconds".format(max_sample_seconds))
 
                 for aug_idx in range(1 + num_augmentations):
