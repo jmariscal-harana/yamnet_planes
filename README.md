@@ -48,8 +48,7 @@ These 96x64 patches are then fed into the Mobilenet_v1 model to yield a 3x2
 array of activations for 1024 kernels at the top of the convolution.  These are
 averaged to give a 1024-dimension embedding, then put through a single logistic
 layer to get the 2 per-class output scores corresponding to the 960 ms input
-waveform segment. (Because of the window framing, you need at least 975 ms of
-input waveform to get the first frame of output scores.)
+waveform segment.
 
 
 ## Training
