@@ -128,12 +128,12 @@ def yamnet_frames_model(params):
   """
   waveform = layers.Input(batch_shape=(1, None))
   # Store the intermediate spectrogram features to use in visualization.
-  spectrogram, _ = features.waveform_to_log_mel_spectrogram(
+  spectrogram, _, _ = features.waveform_to_log_mel_spectrogram(
     tf.squeeze(waveform, axis=0), params)
   patches = features.spectrogram_to_patches(spectrogram, params)
   predictions = yamnet(patches)
   frames_model = Model(name='yamnet_frames', 
-                       inputs=waveform, outputs=[predictions, spectrogram])
+                       inputs=waveform, outputs=[predictions, spectrogram, patches])
   return frames_model
 
 

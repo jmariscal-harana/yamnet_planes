@@ -2,14 +2,15 @@
 import pyaudio, librosa
 import numpy as np
 
-def read_wav(fname, output_sr, use_rosa=True):
-    # small wrapper - i was seeing some slightly different 
-    # results when loading with different libraries 
+# Convert input waveform to numpy 
+def read_wav(fname, 
+    output_sr,
+    use_rosa=True):
+    
     if use_rosa:
         waveform, sr = librosa.load(fname, sr=output_sr, dtype=np.float32)
     else:
         wav_data, sr = sf.read(fname, dtype=np.int16)
-        
         if wav_data.ndim > 1: 
             # (ns, 2)
             wav_data = wav_data.mean(1)
@@ -18,14 +19,17 @@ def read_wav(fname, output_sr, use_rosa=True):
         waveform = wav_data / 32768.0
     
     #waveform = waveform.astype(np.float64) #will np.float64 improve performance?
-
+    
     return waveform
 
-def remove_silence(waveform, top_db=15, min_chunk_size=2000, merge_chunks=True):
-    # Loads sample into chunks of non-silence 
-    
+
+# Loads sample into chunks of non-silence 
+def remove_silence(waveform,
+    top_db=15,
+    min_chunk_size=2000,
+    merge_chunks=True):
+
     splits = librosa.effects.split(waveform, top_db=top_db)
-    
     waves = []
     for start, end in splits:
         if (end-start) < min_chunk_size:
@@ -43,18 +47,20 @@ def remove_silence(waveform, top_db=15, min_chunk_size=2000, merge_chunks=True):
     
     return waves
 
+
 import os 
 
 def get_top_dirs(p):
     dirs = list(filter(lambda x : os.path.isdir( os.path.join(p, x) ), os.listdir(p)))
     return list(map(lambda x : os.path.join(p, x), dirs))
 
-def random_augment_wav(wav_data, DESIRED_SR):
-    # apply some random augmentations to the sound
-    # - time stretch, resample, volume change, minor noise 
-    # - this has not been evaluated to measure contributions
-    # - TODO: probably a lot more augmentations you could use 
-    
+def random_augment_wav(wav_data,
+    DESIRED_SR):
+
+    # Apply random augmentations to the sound:
+    # -time stretch, resample, volume change, minor noise 
+    # -TODO: probably a lot more augmentations you could use 
+
     wav_data = wav_data.copy() 
     
     # random re-sample 
@@ -78,25 +84,23 @@ def random_augment_wav(wav_data, DESIRED_SR):
     
     return wav_data
 
+
 import glob, resampy
 from tqdm import tqdm
 
 def load_data(data_path, 
-              yamnet_features, 
-              num_augmentations=5,
-              max_sample_seconds=5.0,
-              use_rosa=True,
-              DESIRED_SR=16000):
-    """
-    Loads data from .wav files contained in subfolders where 
-    folder name is label, then runs them 
-    through the audio_model to get feature vectors 
-    and returns:
+    yamnet_features,
+    num_augmentations=5,
+    max_sample_seconds=5.0,
+    use_rosa=True,
+    DESIRED_SR=16000):
+    
+    """Loads data from .wav files contained in subfolders where 
+    folder name
+    is label, then runs them through yamnet_features to get feature vectors and returns:
     
     X : [ np.array(1024) , ... ]
-    Y : [ category_idx , ...]
-    
-    """
+    Y : [ category_idx , ...]"""
     
     label_dirs = get_top_dirs(data_path)
 
@@ -143,11 +147,12 @@ def load_data(data_path,
                 
     return _samples, _labels
 
+
 def run_models(waveform, 
-               yamnet_features, 
-               top_model, 
-               strip_silence=False, 
-               min_samples=16000):
+    yamnet_features, 
+    top_model, 
+    strip_silence=False, 
+    min_samples=16000):
     
     if strip_silence:
         waveform = remove_silence(waveform, top_db=10)
@@ -167,10 +172,14 @@ def run_models(waveform,
     all_scores = np.mean(all_scores, axis=0)
     return all_scores
 
-# Listen to audio function (workaround for vscode)
+
+# Listen to audio function (workaround for VSCode)
 import scipy.io.wavfile, vlc, os
 
-def play_audio(file_tmp,sr,waveform):
+def play_audio(file_tmp,
+    sr,
+    waveform):
+
     scipy.io.wavfile.write(file_tmp, sr, waveform)
     for audio in [file_tmp]:
         p = vlc.MediaPlayer(audio)

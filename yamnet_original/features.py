@@ -17,79 +17,75 @@
 
 Functions:
   waveform_to_log_mel_spectrogram: input a waveform and output a log-scaled mel spectrogram
-
-  spectrogram_to_patches: input a log-scaled mel spectrogram and output the final image (patches) to be analysed
-"""
+  spectrogram_to_patches: input a log-scaled mel spectrogram and output the final image (features/patches) to be analysed"""
 import numpy as np
 import tensorflow as tf
 
 
-def waveform_to_log_mel_spectrogram(waveform, params, print_on=0):
-  """Compute log-scaled mel spectrogram of a 1-D waveform."""
+def waveform_to_log_mel_spectrogram(waveform,params,print_on=0):
+  """Compute log-scaled mel spectrogram of an input waveform"""
+
   with tf.name_scope('log_mel_features'): #context manager which adds "log_mel_features" to the name of each tensor
-    # Convert waveform into spectrogram using a Short-Time Fourier Transform (stft).
-    # Note that tf.signal.stft() uses a periodic Hann window by default.
+    # Calculate Short-Time Fourier Transform (STFT) parameters
     stft_frame_length = int(round(params.SAMPLE_RATE * params.STFT_WINDOW_SECONDS)) #STFT window length
     stft_frame_step = int(round(params.SAMPLE_RATE * params.STFT_HOP_SECONDS)) #STFT hop length
     fft_length = 2 ** int(np.ceil(np.log(stft_frame_length) / np.log(2.0))) #FFT length = smallest power of 2 enclosing stft_frame_length
-    num_spectrogram_bins = fft_length // 2 + 1 #for reference only
+    fft_frequency_bins = fft_length // 2 + 1 #number of frequency bins
 
     if print_on:
       print("SPECTROGRAM PARAMETERS:")
       print("stft_frame_length:",stft_frame_length)
       print("stft_frame_step:",stft_frame_step)
       print("fft_length:",fft_length)
-      print("num_spectrogram_bins:",num_spectrogram_bins,"\n")
+      print("fft_frequency_bins:",fft_frequency_bins,"\n")
 
-    magnitude_spectrogram = tf.abs(tf.signal.stft(
+    # Convert waveform into spectrogram (complex values) using a STFT
+    # NOTE: tf.signal.stft() uses a periodic Hann window by default
+    spectrogram = tf.signal.stft(
       signals=waveform,
       frame_length=stft_frame_length,
       frame_step=stft_frame_step,
       fft_length=fft_length,
-      pad_end=True))
-      # magnitude_spectrogram has shape [<# STFT frames>, num_spectrogram_bins]
+      pad_end=True) #[<# STFT frames>, fft_frequency_bins]
+
+    # Calculate magnitude spectrogram
+    magnitude_spectrogram = tf.abs(spectrogram) #[<# STFT frames>, fft_frequency_bins]
     
-    # Convert spectrogram into log-scaled mel spectrogram
+    # Calculate mel weight matrix
     linear_to_mel_weight_matrix = tf.signal.linear_to_mel_weight_matrix(
       num_mel_bins=params.MEL_BANDS,
-      num_spectrogram_bins=num_spectrogram_bins,
+      num_spectrogram_bins=fft_frequency_bins,
       sample_rate=params.SAMPLE_RATE,
       lower_edge_hertz=params.MEL_MIN_HZ,
       upper_edge_hertz=params.MEL_MAX_HZ)
-    mel_spectrogram = tf.matmul(
-      magnitude_spectrogram, 
-      linear_to_mel_weight_matrix)
-    log_mel_spectrogram = tf.math.log(mel_spectrogram + params.LOG_OFFSET)
-    # log_mel_spectrogram has shape [<# STFT frames>, MEL_BANDS]
+    
+    # Convert magnitude spectrogram into log-scaled mel spectrogram
+    mel_spectrogram = tf.matmul(magnitude_spectrogram, linear_to_mel_weight_matrix)
+    log_mel_spectrogram = tf.math.log(mel_spectrogram + params.LOG_OFFSET) #[<# STFT frames>, MEL_BANDS]
 
-    return log_mel_spectrogram, magnitude_spectrogram
+    return log_mel_spectrogram, magnitude_spectrogram, spectrogram
 
 
 def spectrogram_to_patches(spectrogram, params, print_on=0):
-  """Break up any kind of spectrogram into a stack of fixed-size patches"""
-  with tf.name_scope('feature_patches'):
-    # Frame spectrogram (shape [<# STFT frames>, MEL_BANDS]) into patches
-    # (the input examples).
-    # Only complete frames are emitted, so if there is less than 
-    # PATCH_WINDOW_SECONDS of waveform then nothing is emitted 
-    # (to avoid this, zero-pad before processing).
-    hop_length_samples = int(round(params.SAMPLE_RATE * params.STFT_HOP_SECONDS))
-    spectrogram_sr = int(round(params.SAMPLE_RATE / hop_length_samples))
-    patch_window_length_samples = int(round(spectrogram_sr * params.PATCH_WINDOW_SECONDS))
-    patch_hop_length_samples = int(round(spectrogram_sr * params.PATCH_HOP_SECONDS))
-    
-    if print_on:
-      print("hop_length_samples:", hop_length_samples)
-      print("spectrogram_sr:", spectrogram_sr)
-      print("patch_window_length_samples:", patch_window_length_samples)
-      print("params.PATCH_HOP_SECONDS:", params.PATCH_HOP_SECONDS)
-      print("patch_hop_length_samples", patch_hop_length_samples)
-    
-    features = tf.signal.frame(
-      signal=spectrogram,
-      frame_length=patch_window_length_samples,
-      frame_step=patch_hop_length_samples,
-      axis=0)
-    # features has shape [<# patches>, <# STFT frames in an patch>, MEL_BANDS]
+    """Break up any kind of spectrogram into multiple fixed-size images (features/patches)"""
 
-    return features
+    with tf.name_scope('feature_patches'):
+      # Frame input spectrogram (e.g. log-scaled mel spectrogram) into multiple fixed-size image (features/patches)
+      # Only complete images are emitted (if waveform < PATCH_WINDOW_SECONDS then nothing is emitted)
+      # To avoid this, zero-pad with pad_end=TRUE
+      feature_frame_length = int(round(params.PATCH_WINDOW_SECONDS/params.STFT_HOP_SECONDS))
+      feature_frame_step = int(round(params.PATCH_HOP_SECONDS/params.STFT_HOP_SECONDS))
+      
+      if print_on:
+        print("feature_frame_length:",feature_frame_length)
+        print("feature_frame_step:",feature_frame_step,"\n")
+
+      features = tf.signal.frame(
+        signal=spectrogram,
+        frame_length=feature_frame_length,
+        frame_step=feature_frame_step,
+        pad_end=False,
+        pad_value=0,
+        axis=0) # [<# images>, feature_frame_length, MEL_BANDS]
+
+      return features
