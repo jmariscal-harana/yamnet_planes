@@ -2,12 +2,13 @@
 This model is based on Google's YAMNet pretrained deep network, and it has been modified to detect small airplane sounds in real time. The original repository can be found at: https://github.com/tensorflow/models/tree/master/research/audioset/yamnet.
 
 
-## File and folder description (24/03/2020)
+## File and folder description (23/06/2020)
 - **yamnet_original/**: contains the following scripts from YAMNet:
   - `yamnet.py`: original model definition
   - `params.py`: hyperparameter list
   - `features.py`: audio feature extraction functions
-- `modified_yamnet.py`: modified version of `yamnet.py` which outputs the network up to and including the 'global average pooling' layer
+- `yamnet_modified.py`: modified version of `yamnet.py` which outputs the network up to and including the 'global average pooling' layer
+- `yamnet_functions.py`: python functions required for data processing
 - `yamnet_planes_realtime.py`: real-time inference from microphone feed
 
 
@@ -48,8 +49,7 @@ These 96x64 patches are then fed into the Mobilenet_v1 model to yield a 3x2
 array of activations for 1024 kernels at the top of the convolution.  These are
 averaged to give a 1024-dimension embedding, then put through a single logistic
 layer to get the 2 per-class output scores corresponding to the 960 ms input
-waveform segment. (Because of the window framing, you need at least 975 ms of
-input waveform to get the first frame of output scores.)
+waveform segment.
 
 
 ## Training
