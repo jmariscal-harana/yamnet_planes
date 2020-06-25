@@ -16,7 +16,7 @@ def yamnet(features):
 
   Returns:
     net: network configuration including the final global average pooling layer
-    predictions (NOT USED): class scores per time frame matrix from original YAMNet
+    predictions (NOT USED, but required to load weights): class scores per time frame matrix from original YAMNet
   """  
   net = layers.Reshape(
     (params.PATCH_FRAMES, params.PATCH_BANDS, 1),
@@ -43,13 +43,13 @@ def yamnet_frames_model(params):
         waveform: input waveform (1, num_samples)
       Output:
         log_mel_spectrogram: log-scaled mel spectrogram (num_spectrogram_frames, num_mel_bins)
-        patches: image to be analysed
-        net: network configuration including the final global average pooling layer
-        predictions (NOT USED): class scores per time frame matrix from original YAMNet
+        patches: images to be analysed
+        net: network configuration up to and including the final global average pooling layer
+        predictions (NOT USED, but required to load weights): class scores per time frame matrix from original YAMNet
   """
   waveform = layers.Input(batch_shape=(1, None))
   # Store the intermediate spectrogram features to use in visualization.
-  log_mel_spectrogram, _ = features.waveform_to_log_mel_spectrogram(
+  log_mel_spectrogram, _, _ = features.waveform_to_log_mel_spectrogram(
     tf.squeeze(waveform, axis=0), params)
   patches = features.spectrogram_to_patches(log_mel_spectrogram, params)
   net, predictions = yamnet(patches)

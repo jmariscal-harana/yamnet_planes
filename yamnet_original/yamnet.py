@@ -138,7 +138,7 @@ def yamnet_frames_model(params):
 
 
 def class_names(class_map_csv):
-  """Read the class name definition file and return a list of strings."""
+  """Read the class name definition file and return a list of strings"""
   with open(class_map_csv) as csv_file:
     reader = csv.reader(csv_file)
     next(reader)   # Skip header

@@ -94,14 +94,11 @@ def load_data(data_path,
     max_sample_seconds=5.0,
     use_rosa=True,
     DESIRED_SR=16000):
-    
-    """Loads data from .wav files contained in subfolders where 
-    folder name
-    is label, then runs them through yamnet_features to get feature vectors and returns:
-    
-    X : [ np.array(1024) , ... ]
-    Y : [ category_idx , ...]"""
-    
+    """Loads data from .wav files under data_path using subfolder names as labels,
+    then runs them through yamnet_features to get feature vectors and returns them:
+        X : [ np.array(1024) , ... ]
+        Y : [ category_idx , ...]
+    """    
     label_dirs = get_top_dirs(data_path)
 
     _samples = []

@@ -39,3 +39,4 @@ Thumbs.db
 # Custom
 __pycache__/
 .vscode/
+run_functions.py

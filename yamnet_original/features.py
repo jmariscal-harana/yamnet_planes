@@ -17,14 +17,14 @@
 
 Functions:
   waveform_to_log_mel_spectrogram: input a waveform and output a log-scaled mel spectrogram
-  spectrogram_to_patches: input a log-scaled mel spectrogram and output the final image (features/patches) to be analysed"""
+  spectrogram_to_patches: input a log-scaled mel spectrogram and output the final image (features/patches) to be analysed
+"""
 import numpy as np
 import tensorflow as tf
 
 
 def waveform_to_log_mel_spectrogram(waveform,params,print_on=0):
   """Compute log-scaled mel spectrogram of an input waveform"""
-
   with tf.name_scope('log_mel_features'): #context manager which adds "log_mel_features" to the name of each tensor
     # Calculate Short-Time Fourier Transform (STFT) parameters
     stft_frame_length = int(round(params.SAMPLE_RATE * params.STFT_WINDOW_SECONDS)) #STFT window length
@@ -68,7 +68,6 @@ def waveform_to_log_mel_spectrogram(waveform,params,print_on=0):
 
 def spectrogram_to_patches(spectrogram, params, print_on=0):
     """Break up any kind of spectrogram into multiple fixed-size images (features/patches)"""
-
     with tf.name_scope('feature_patches'):
       # Frame input spectrogram (e.g. log-scaled mel spectrogram) into multiple fixed-size image (features/patches)
       # Only complete images are emitted (if waveform < PATCH_WINDOW_SECONDS then nothing is emitted)
