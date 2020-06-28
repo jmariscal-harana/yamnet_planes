@@ -183,3 +183,14 @@ def play_audio(file_tmp,
         p.play()
         print()
     os.remove(audio)
+
+
+# Calculate number of feature vectors which can be extracted from data to ensure class balance
+# data_path = "/home/anakin/Datasets/airplanes_v0/training_data/"
+
+# def class_balance(data_path):
+    #open class and print out the class name
+    #open each file within to extract their durations
+    #feature_vectors = 1 + (duration - frame_length) / hop
+    #feature_vectors_sum += feature_vectors
+    #print(feature_vectors_sum)
