@@ -41,3 +41,4 @@ __pycache__/
 .vscode/
 run_functions.py
 top_model*
+logs/

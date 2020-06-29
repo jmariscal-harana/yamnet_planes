@@ -3,7 +3,8 @@ import pyaudio, librosa
 import numpy as np
 
 # Convert input waveform to numpy 
-def read_wav(fname, 
+def read_wav(
+    fname, 
     output_sr,
     use_rosa=True):
     
@@ -24,7 +25,8 @@ def read_wav(fname,
 
 
 # Loads sample into chunks of non-silence 
-def remove_silence(waveform,
+def remove_silence(
+    waveform,
     top_db=15,
     min_chunk_size=2000,
     merge_chunks=True):
@@ -54,7 +56,8 @@ def get_top_dirs(p):
     dirs = list(filter(lambda x : os.path.isdir( os.path.join(p, x) ), os.listdir(p)))
     return list(map(lambda x : os.path.join(p, x), dirs))
 
-def random_augment_wav(wav_data,
+def random_augment_wav(
+    wav_data,
     DESIRED_SR):
 
     # Apply random augmentations to the sound:
@@ -88,9 +91,11 @@ def random_augment_wav(wav_data,
 import glob, resampy
 from tqdm import tqdm
 
-def load_data(data_path, 
+def data_augmentation(
+    data_path, 
     yamnet_features,
     num_augmentations=5,
+    min_sample_seconds=1.0,
     max_sample_seconds=5.0,
     use_rosa=True,
     DESIRED_SR=16000):
@@ -98,13 +103,14 @@ def load_data(data_path,
     then runs them through yamnet_features to get feature vectors and returns them:
         X : [ np.array(1024) , ... ]
         Y : [ category_idx , ...]
-    """    
+    """
+    print("Loading training data, number of augmentations = ", num_augmentations)    
     label_dirs = get_top_dirs(data_path)
 
     _samples = []
     _labels = []
     
-    MIN_WAV_SIZE = 5000 #
+    MIN_WAV_SIZE = int(DESIRED_SR * min_sample_seconds) #Should be at least 50% longer than PATCH_WINDOW_SECONDS
     MAX_WAV_SIZE = int(DESIRED_SR * max_sample_seconds)
     
     for label_idx, label_dir in enumerate(label_dirs):
@@ -141,11 +147,18 @@ def load_data(data_path,
                     for patch in dense_out:
                         _samples.append(patch)
                         _labels.append(label_idx)
-                
+
+    for label_idx, label_dir in enumerate(label_dirs):
+        label_name = os.path.basename(label_dir)
+        label_occurrences = _labels.count(label_idx)
+
+        print("Number of", label_name, "samples:", str(round(100*label_occurrences/len(_labels))) + "%")
+
     return _samples, _labels
 
 
-def run_models(waveform, 
+def run_models(
+    waveform, 
     yamnet_features, 
     top_model, 
     strip_silence=False, 
@@ -173,7 +186,8 @@ def run_models(waveform,
 # Listen to audio function (workaround for VSCode)
 import scipy.io.wavfile, vlc, os
 
-def play_audio(file_tmp,
+def play_audio(
+    file_tmp,
     sr,
     waveform):
 

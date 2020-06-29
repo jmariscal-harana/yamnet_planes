@@ -21,10 +21,11 @@ elif tf_ver[0] == "2":
 # Add/append required paths
 import os, sys
 
-path_root = '/home/anakin/Models/yamnet_planes/' #path to main folder
-# path_root = input("Enter the path of your repository: ") # ask user for path_root
-assert os.path.exists(path_root)
-sys.path.append(path_root)
+path_root = '/home/anakin/' #path to root folder
+path_model = path_root+"Models/yamnet_planes/"
+# path_model = input("Enter the path of your repository: ") # ask user for path_model
+assert os.path.exists(path_model)
+sys.path.append(path_model)
 
 import yamnet_functions
 
@@ -36,16 +37,18 @@ params.PATCH_HOP_SECONDS = 0.24 #low values: higher accuracy but higher computat
 DESIRED_SR=params.SAMPLE_RATE
 
 yamnet_features = yamnet_modified.yamnet_frames_model(params)
-yamnet_features.load_weights(path_root+'yamnet.h5')
+yamnet_features.load_weights(path_model+'yamnet.h5')
 
-data_path = "/home/anakin/Datasets/airplanes_v0/training_data/"
-num_augmentations=1
-max_sample_seconds=5.0
+# Data augmentation
+path_dataset = path_root+"/Datasets/airplanes_v0/training_data/"
+num_augmentations=0
 
-samples, labels = yamnet_functions.load_data(data_path, 
+samples, labels = yamnet_functions.data_augmentation(
+    path_dataset, 
     yamnet_features,
     num_augmentations=num_augmentations,
-    max_sample_seconds=5.0,
+    min_sample_seconds=1.5,
+    max_sample_seconds=1000.0,
     use_rosa=True,
     DESIRED_SR=DESIRED_SR)
 
@@ -95,10 +98,20 @@ opt = SGD(lr=0.001, decay=1e-6, momentum=0.9, nesterov=True)
 yamnet_planes.compile(optimizer=opt, loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
 # Train the classifier
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
+from time import time
 
+# Callbacks
 es = EarlyStopping(monitor='val_loss', mode='min', verbose=1)
 save_best = ModelCheckpoint('top_model.hdf5', save_best_only=True, monitor='val_loss', mode='min')
+log_dir = "logs/{}".format(int(time()))
+# tensorboard = TensorBoard(log_dir=log_dir, histogram_freq=1)
 
-history = yamnet_planes.fit(samples, labels, epochs=10000, validation_split=0.1, callbacks=[save_best])
-# history = yamnet_planes.fit(samples, labels, epochs=200, validation_split=0.1, callbacks=[save_best])
+epochs = 10
+
+time_start = time()
+history = yamnet_planes.fit(samples, labels, epochs=epochs, validation_split=0.1, callbacks=[save_best])
+time_end = time()
+time_train = round(time_end - time_start)
+
+print(f"{epochs} epochs in {round(time_train/3600, 3)} hours ({time_train/epochs} seconds per epoch)")
