@@ -25,31 +25,22 @@ The only parameter in `yamnet_original/params.py` which should be modified durin
 
 
 ### Running 'yamnet_planes'
-The model can be used by running `python3 yamnet_planes_realtime_v2.py`. It will take up to 1 minute to load. Once it loads, if you have connected a microphone to your device, it will start detecting planes!
+The model can be used by running `python3 yamnet_planes_realtime.py`. It will take up to 1 minute to load. Once it loads, if you have connected a microphone to your device, it will start detecting planes!
 
-The code will report, every ?? seconds, the detected class ('plane' or not 'plane') and the average confidence averaged over all the frames for the current time interval.
+The code will report, every PATCH_HOP_SECONDS seconds, the detected class ('plane' or 'not plane') and the average prediction confidence (from 0 to 1) for the current time interval.
 
 
 ### Input: Audio Features
 See `features.py`. YAMNet was trained with audio features computed as follows:
 
 * All audio is resampled to 16 kHz mono.
-* A spectrogram is computed using magnitudes of the Short-Time Fourier Transform
-  with a window size of 25 ms, a window hop of 10 ms, and a periodic Hann
-  window.
-* A mel spectrogram is computed by mapping the spectrogram to 64 mel bins
-  covering the range 125-7500 Hz.
-* A stabilized log mel spectrogram is computed by applying
-  log(mel-spectrum + 0.001) where the offset is used to avoid taking a logarithm
-  of zero.
-* These features are then framed into 50%-overlapping examples of 0.96 seconds,
-  where each example covers 64 mel bands and 96 frames of 10 ms each.
+* A spectrogram is computed using magnitudes of the Short-Time Fourier Transform with a window size of 25 ms, a window hop of 10 ms, and a periodic Hann window.
+* A mel spectrogram is computed by mapping the spectrogram to 64 mel bins covering the range 125-7500 Hz.
+* A log-scaled mel spectrogram is computed by applying log(mel-spectrogram + 0.001) where the offset is used to avoid taking a logarithm of zero.
+* These features are then framed into XX%-overlapping images of 0.96 seconds, where each image covers 64 mel bands and 96 frames of 10 ms each.
 
-These 96x64 patches are then fed into the Mobilenet_v1 model to yield a 3x2
-array of activations for 1024 kernels at the top of the convolution.  These are
-averaged to give a 1024-dimension embedding, then put through a single logistic
-layer to get the 2 per-class output scores corresponding to the 960 ms input
-waveform segment.
+These 96x64 patches are then fed into the Mobilenet_v1 model to yield a 3x2 array of activations for 1024 kernels at the top of the convolution.
+These are averaged to give a 1024-dimension embedding, then put through a single logistic layer to get the 2 per-class output scores corresponding to the 960 ms input waveform segment.
 
 
 ## Training
