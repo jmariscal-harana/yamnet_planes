@@ -37,10 +37,10 @@ See `features.py`. YAMNet was trained with audio features computed as follows:
 * A spectrogram is computed using magnitudes of the Short-Time Fourier Transform with a window size of 25 ms, a window hop of 10 ms, and a periodic Hann window.
 * A mel spectrogram is computed by mapping the spectrogram to 64 mel bins covering the range 125-7500 Hz.
 * A log-scaled mel spectrogram is computed by applying log(mel-spectrogram + 0.001) where the offset is used to avoid taking a logarithm of zero.
-* These features are then framed into XX%-overlapping images of 0.96 seconds, where each image covers 64 mel bands and 96 frames of 10 ms each.
+* These features are then framed into XX%-overlapping patches (images) of 0.96 seconds, where each patch covers 64 mel bands and 96 frames of 10 ms each.
 
 These 96x64 patches are then fed into the Mobilenet_v1 model to yield a 3x2 array of activations for 1024 kernels at the top of the convolution.
-These are averaged to give a 1024-dimension embedding, then put through a single logistic layer to get the 2 per-class output scores corresponding to the 960 ms input waveform segment.
+These are averaged to give a 1024-dimension embedding (feature vector), then put through a single logistic layer to get the 2 per-class output scores corresponding to the 0.96 second input waveform segment.
 
 
 ## Training
