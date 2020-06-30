@@ -98,7 +98,8 @@ def data_augmentation(
     min_sample_seconds=1.0,
     max_sample_seconds=5.0,
     use_rosa=True,
-    DESIRED_SR=16000):
+    DESIRED_SR=16000,
+    balanced_aug=1):
     """Loads data from .wav files under data_path using subfolder names as labels,
     then runs them through yamnet_features to get feature vectors and returns them:
         X : [ np.array(1024) , ... ]
@@ -135,7 +136,7 @@ def data_augmentation(
                     waveform = waveform[:MAX_WAV_SIZE]
                     print("\nIgnoring audio data after {} seconds".format(max_sample_seconds))
 
-                for aug_idx in range(1 + num_augmentations):
+                for aug_idx in range((1 + num_augmentations)*balanced_aug[label_idx]): #TODO: balanced_aug currently works when augmenting one of the classes only
                     
                     aug_wav = waveform.copy()
                     

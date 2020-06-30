@@ -56,7 +56,8 @@ samples, labels = yamnet_functions.data_augmentation(
     min_sample_seconds=1.5,
     max_sample_seconds=1000.0,
     use_rosa=True,
-    DESIRED_SR=DESIRED_SR)
+    DESIRED_SR=DESIRED_SR,
+    balanced_aug=[1,7])
 
 # Randomise sample/label order
 import random
