@@ -14,18 +14,18 @@ tf_ver = tf.__version__
 if tf_ver[0] == "1":
     gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.05)
     sess=tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+elif tf_ver[0] == "2":
+    gpu_options=tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.05)
+    sess=tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(gpu_options=gpu_options))
 
 # Add/append required paths
 import os, sys
 
-path_root = '/home/anakin/Models/yamnet_planes/' #path to main folder
-# path_root = input("Enter the path of your repository: ") # ask user for path_root
-assert os.path.exists(path_root)
-sys.path.append(path_root)
-
-path_yamnet_original = path_root+'yamnet_original/' #path to original yamnet files
-assert os.path.exists(path_yamnet_original)
-# sys.path.append(path_yamnet_original)
+path_root = '/home/anakin/' #path to root folder
+path_model = path_root+"Models/yamnet_planes/"
+# path_model = input("Enter the path of your repository: ") # ask user for path_model
+assert os.path.exists(path_model)
+sys.path.append(path_model)
 
 # Load functions
 import yamnet_functions
@@ -38,13 +38,14 @@ params.PATCH_HOP_SECONDS = 0.24 #low values: higher accuracy but higher computat
 DESIRED_SR = params.SAMPLE_RATE # required by YAMNet
 
 yamnet_features = yamnet_modified.yamnet_frames_model(params)
-yamnet_features.load_weights(path_root+'yamnet.h5')
+yamnet_features.load_weights(path_model+'yamnet.h5')
+
 
 # Load model
 from tensorflow.keras.models import load_model
 from tensorflow.keras.optimizers import SGD, Adam
 
-yamnet_planes = load_model(path_root+'top_model.hdf5')
+yamnet_planes = load_model(path_model+'top_model.hdf5')
 opt = SGD(lr=0.001, decay=1e-6, momentum=0.9, nesterov=True)
 yamnet_planes.compile(optimizer=opt, loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 yamnet_planes.summary()
@@ -55,13 +56,13 @@ class_labels = ["not plane", "plane"]
 import yamnet_original.params as params
 DESIRED_SR = params.SAMPLE_RATE # required by YAMNet
 
-# Scores for a holdout folder
-holdout_dir = "/home/anakin/Datasets/airplanes_v0/holdout_data/not_plane/"
-arr = os.listdir(holdout_dir)
+# Scores for testing folder
+path_data_test = path_root+"Datasets/airplanes_v0/holdout_data/plane/"
+arr = os.listdir(path_data_test)
 
 for fname in arr:
     print(fname)
-    fname = holdout_dir+fname
+    fname = path_data_test+fname
     waveform = yamnet_functions.read_wav(fname, DESIRED_SR, use_rosa=1)
 
     # make file a bit longer by duplicating it 

@@ -27,6 +27,10 @@ path_model = path_root+"Models/yamnet_planes/"
 assert os.path.exists(path_model)
 sys.path.append(path_model)
 
+path_yamnet_original = path_model+'yamnet_original/' #path to original yamnet files
+assert os.path.exists(path_yamnet_original)
+
+# Load functions
 import yamnet_functions
 
 # Modified YAMNet model for feature extraction
@@ -39,12 +43,14 @@ DESIRED_SR=params.SAMPLE_RATE
 yamnet_features = yamnet_modified.yamnet_frames_model(params)
 yamnet_features.load_weights(path_model+'yamnet.h5')
 
+
 # Data augmentation
-path_dataset = path_root+"/Datasets/airplanes_v0/training_data/"
+path_data_train = path_root+"Datasets/airplanes_v0/training_data/"
+# path_data_train = input("Enter the path of your training dataset: ") # ask user for path_data_train
 num_augmentations=0
 
 samples, labels = yamnet_functions.data_augmentation(
-    path_dataset, 
+    path_data_train, 
     yamnet_features,
     num_augmentations=num_augmentations,
     min_sample_seconds=1.5,
