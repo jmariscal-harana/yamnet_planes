@@ -1,25 +1,24 @@
 # Function definitions
 import pyaudio, librosa
 import numpy as np
+import soundfile as sf
 
 # Convert input waveform to numpy 
 def read_wav(
-    fname, 
+    wav_file, 
     output_sr,
     use_rosa=True):
     
     if use_rosa:
-        waveform, sr = librosa.load(fname, sr=output_sr, dtype=np.float32)
+        waveform, sr = librosa.load(wav_file, sr=output_sr, dtype=np.float32)   # TODO: will np.float64 improve performance?
     else:
-        wav_data, sr = sf.read(fname, dtype=np.int16)
+        wav_data, sr = sf.read(wav_file, dtype=np.int16)
         if wav_data.ndim > 1: 
             # (ns, 2)
             wav_data = wav_data.mean(1)
         if sr != output_sr:
             wav_data = resampy.resample(wav_data, sr, output_sr)
         waveform = wav_data / 32768.0
-    
-    #waveform = waveform.astype(np.float64) #will np.float64 improve performance?
     
     return waveform
 
@@ -91,69 +90,118 @@ def random_augment_wav(
 import glob, resampy
 from tqdm import tqdm
 
-def data_augmentation(
-    data_path, 
-    yamnet_features,
-    num_augmentations=5,
+def sample_count(
+    data_path,
+    params, 
     min_sample_seconds=1.0,
     max_sample_seconds=5.0,
     use_rosa=True,
-    DESIRED_SR=16000,
-    balanced_aug=1):
+    DESIRED_SR=16000):
+    """Loads data from .wav files under data_path to count the number of samples from each class prior 
+    to data augmentation.
+    """
+    # Get path to each folder within data_path
+    label_dirs = get_top_dirs(data_path)
+    
+    MIN_WAV_SIZE = int(DESIRED_SR * min_sample_seconds)
+    MAX_WAV_SIZE = int(DESIRED_SR * max_sample_seconds)
+    
+    sample_numbers = []
+
+    print("Counting number of samples corresponding to each class\n")
+    for label_idx, label_dir in enumerate(label_dirs):
+        
+        label_name = os.path.basename(label_dir)    # Get label name from current folder name
+        wavs = glob.glob(os.path.join(label_dir, "*.wav"))  # Get all .wav file names within current folder
+        sample_number = 0
+
+        for wav_file in tqdm(wavs):
+            waveform = read_wav(wav_file, DESIRED_SR, use_rosa=use_rosa)    # Read waveform
+
+            if len(waveform) < MIN_WAV_SIZE:
+                print("\nIgnoring audio shorter than {} seconds".format(min_sample_seconds))
+                continue 
+
+            if len(waveform) > MAX_WAV_SIZE:
+                waveform = waveform[:MAX_WAV_SIZE]
+                print("\nIgnoring audio data after {} seconds".format(max_sample_seconds))
+
+            # Calculate number of samples
+            audio_duration = len(waveform)/DESIRED_SR
+            frame_duration = params.PATCH_WINDOW_SECONDS
+            hop_duration = params.PATCH_HOP_SECONDS
+
+            sample_number += 1 + np.floor((audio_duration - frame_duration)/hop_duration)
+
+        sample_numbers.append(int(sample_number))
+
+    for label_idx, label_dir in enumerate(label_dirs):
+        label_name = os.path.basename(label_dir)
+
+        print("'{}' samples: {}".format(label_name, sample_numbers[label_idx]))
+
+    return sample_numbers
+
+
+def data_augmentation(
+    data_path, 
+    yamnet_features,
+    num_augmentations=[1,1],
+    min_sample_seconds=1.0,
+    max_sample_seconds=5.0,
+    use_rosa=True,
+    DESIRED_SR=16000):
     """Loads data from .wav files under data_path using subfolder names as labels,
     then runs them through yamnet_features to get feature vectors and returns them:
         X : [ np.array(1024) , ... ]
         Y : [ category_idx , ...]
     """
-    print("Loading training data, number of augmentations = ", num_augmentations)    
+    print("Loading training data, number of augmentations = {}\n".format(num_augmentations))
     label_dirs = get_top_dirs(data_path)
 
     _samples = []
     _labels = []
     
-    MIN_WAV_SIZE = int(DESIRED_SR * min_sample_seconds) #Should be at least 50% longer than PATCH_WINDOW_SECONDS
+    MIN_WAV_SIZE = int(DESIRED_SR * min_sample_seconds)
     MAX_WAV_SIZE = int(DESIRED_SR * max_sample_seconds)
     
     for label_idx, label_dir in enumerate(label_dirs):
         
         label_name = os.path.basename(label_dir)
         wavs = glob.glob(os.path.join(label_dir, "*.wav"))
-        print(" Loading {:<5} '{:<40}'".format(label_idx, label_name))
+        print("Loading {:<5}-> '{}'".format(label_idx, label_name))
 
         for wav_file in tqdm(wavs):
-            
-            # rosa seems very different?
-            #for use_rosa in range(2):
-            if True:
-                #use_rosa = 1
-                #use_rosa = np.random.uniform() > 0.5
-                waveform = read_wav(wav_file, DESIRED_SR, use_rosa=use_rosa)
+            waveform = read_wav(wav_file, DESIRED_SR, use_rosa=use_rosa)
 
-                if len(waveform) < MIN_WAV_SIZE:
-                    continue 
+            if len(waveform) < MIN_WAV_SIZE:
+                print("\nIgnoring audio shorter than {} seconds".format(min_sample_seconds))
+                continue 
 
-                if len(waveform) > MAX_WAV_SIZE:
-                    waveform = waveform[:MAX_WAV_SIZE]
-                    print("\nIgnoring audio data after {} seconds".format(max_sample_seconds))
+            if len(waveform) > MAX_WAV_SIZE:
+                waveform = waveform[:MAX_WAV_SIZE]
+                print("\nIgnoring audio data after {} seconds".format(max_sample_seconds))
 
-                for aug_idx in range((1 + num_augmentations)*balanced_aug[label_idx]): #TODO: balanced_aug currently works when augmenting one of the classes only
-                    
-                    aug_wav = waveform.copy()
-                    
-                    if aug_idx > 0:
-                        aug_wav = random_augment_wav(aug_wav, DESIRED_SR)
+            for aug_idx in range((1 + num_augmentations[label_idx])):
+                aug_wav = waveform.copy()
+                
+                if aug_idx > 0:
+                    aug_wav = random_augment_wav(aug_wav, DESIRED_SR)
 
-                    _, _, dense_out, _ = yamnet_features.predict(np.reshape(aug_wav, [1, -1]), steps=1)
-                    
-                    for patch in dense_out:
-                        _samples.append(patch)
-                        _labels.append(label_idx)
+                _, _, dense_out, _ = yamnet_features.predict(np.reshape(aug_wav, [1, -1]), steps=1)
+                
+                for patch in dense_out:
+                    _samples.append(patch)
+                    _labels.append(label_idx)
 
+    # Calculate class percentages from labels
     for label_idx, label_dir in enumerate(label_dirs):
         label_name = os.path.basename(label_dir)
+        label_name = "\'"+label_name+"\'"
         label_occurrences = _labels.count(label_idx)
+        label_occurrences_percent = round(100*label_occurrences/len(_labels))
 
-        print("Number of", label_name, "samples:", str(round(100*label_occurrences/len(_labels))) + "%")
+        print("{:<20} samples: {}%".format(label_name, label_occurrences_percent))
 
     return _samples, _labels
 
