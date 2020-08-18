@@ -38,7 +38,6 @@ import yamnet_original.params as params
 import yamnet_modified as yamnet_modified
 
 params.PATCH_HOP_SECONDS = 0.24 #low values: higher accuracy but higher computational cost
-DESIRED_SR=params.SAMPLE_RATE
 
 yamnet_features = yamnet_modified.yamnet_frames_model(params)
 yamnet_features.load_weights(path_model+'yamnet.h5')
@@ -46,18 +45,34 @@ yamnet_features.load_weights(path_model+'yamnet.h5')
 
 # Data augmentation
 path_data_train = path_root+"Datasets/airplanes_v0/training_data/"
-# path_data_train = input("Enter the path of your training dataset: ") # ask user for path_data_train
-num_augmentations=0
+# path_data_train = input("Enter the path of your training dataset: ") # Ask user for path_data_train
+
+# Count the number of original samples for each class
+min_sample_seconds=1.5  # TODO: check this: Should be at least 50% longer than PATCH_WINDOW_SECONDS?
+max_sample_seconds=1000.0
+
+yamnet_functions.sample_count(
+    path_data_train,
+    params, 
+    min_sample_seconds=min_sample_seconds,
+    max_sample_seconds=max_sample_seconds,
+    use_rosa=True,
+    DESIRED_SR=params.SAMPLE_RATE)
+
+# Based on the number of original samples decide how much data augmentation is required by each class
+num_augmentations=[0,0]
 
 samples, labels = yamnet_functions.data_augmentation(
     path_data_train, 
     yamnet_features,
     num_augmentations=num_augmentations,
-    min_sample_seconds=1.5,
-    max_sample_seconds=1000.0,
+    min_sample_seconds=min_sample_seconds,
+    max_sample_seconds=max_sample_seconds,
     use_rosa=True,
-    DESIRED_SR=DESIRED_SR,
-    balanced_aug=[1,7])
+    DESIRED_SR=params.SAMPLE_RATE)
+
+# TODO: To ensure a balanced dataset, randomly delete [samples,labels] from other classes to match number of samples of least frequent class
+
 
 # Randomise sample/label order
 import random
@@ -71,7 +86,8 @@ labels = [labels[i] for i in idxs]
 samples = np.array(samples)
 labels = np.array(labels)
 
-print(" Loaded samples: " , samples.shape, samples.dtype,  labels.shape)
+print("Sample size: {} and type: {}".format(samples.shape, samples.dtype))
+print("Label size:  {}".format(labels.shape))
 
 # Classifier definition
 from tensorflow.keras import Model, layers
