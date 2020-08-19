@@ -18,6 +18,7 @@ elif tf_ver[0] == "2":
     gpu_options=tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.05)
     sess=tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(gpu_options=gpu_options))
 
+
 # Add/append required paths
 import os, sys
 
@@ -29,6 +30,7 @@ sys.path.append(path_model)
 
 path_yamnet_original = path_model+'yamnet_original/' #path to original yamnet files
 assert os.path.exists(path_yamnet_original)
+
 
 # Load functions
 import yamnet_functions
@@ -48,7 +50,7 @@ path_data_train = path_root+"Datasets/airplanes_v0/training_data/"
 # path_data_train = input("Enter the path of your training dataset: ") # Ask user for path_data_train
 
 # Count the number of original samples for each class
-min_sample_seconds=1.5  # TODO: check this: Should be at least 50% longer than PATCH_WINDOW_SECONDS?
+min_sample_seconds=params.PATCH_WINDOW_SECONDS  # Should be at least equal to params.PATCH_WINDOW_SECONDS
 max_sample_seconds=1000.0
 
 yamnet_functions.sample_count(
