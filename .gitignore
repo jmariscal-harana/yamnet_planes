@@ -40,5 +40,6 @@ Thumbs.db
 __pycache__/
 .vscode/
 run_functions.py
-top_model*
+saved_models/
 logs/
+test.py
