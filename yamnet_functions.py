@@ -143,6 +143,8 @@ def sample_count(
     return sample_numbers
 
 
+from scipy.io.wavfile import write
+
 def data_augmentation(
     data_path, 
     yamnet_features,
@@ -188,6 +190,11 @@ def data_augmentation(
                 if aug_idx > 0:
                     aug_wav = random_augment_wav(aug_wav, DESIRED_SR)
 
+                    # # In case you want to listen to the augmented audios:
+                    # if aug_idx == 1:
+                    #     write('audio_original.wav', DESIRED_SR, waveform)
+                    # write('audio_aug_'+str(aug_idx)+'.wav', DESIRED_SR, aug_wav)
+
                 _, _, dense_out, _ = yamnet_features.predict(np.reshape(aug_wav, [1, -1]), steps=1)
                 
                 for patch in dense_out:
@@ -218,7 +225,7 @@ def run_models(
     
     if len(waveform) < min_samples:
         print("input too short after silence removal")
-        return [-1] #this value will be used to discard this audio later
+        return [[-1, -1]] #this value will be used to discard this audio later
     
     _, _, dense_out, _ = yamnet_features.predict(np.reshape(waveform, [1, -1]), steps=1)
     
@@ -228,7 +235,6 @@ def run_models(
         scores = top_model.predict(np.expand_dims(patch,0)).squeeze()
         all_scores.append(scores)
         
-    all_scores = np.mean(all_scores, axis=0)
     return all_scores
 
 
@@ -246,14 +252,3 @@ def play_audio(
         p.play()
         print()
     os.remove(audio)
-
-
-# Calculate number of feature vectors which can be extracted from data to ensure class balance
-# data_path = "/home/anakin/Datasets/airplanes_v0/training_data/"
-
-# def class_balance(data_path):
-    #open class and print out the class name
-    #open each file within to extract their durations
-    #feature_vectors = 1 + (duration - frame_length) / hop
-    #feature_vectors_sum += feature_vectors
-    #print(feature_vectors_sum)
