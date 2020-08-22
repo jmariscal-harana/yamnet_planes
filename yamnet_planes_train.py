@@ -39,7 +39,7 @@ import yamnet_functions
 import yamnet_original.params as params
 import yamnet_modified as yamnet_modified
 
-params.PATCH_HOP_SECONDS = 0.24 #low values: higher accuracy but higher computational cost
+params.PATCH_HOP_SECONDS = 0.096 #low values: higher accuracy but higher computational cost
 
 yamnet_features = yamnet_modified.yamnet_frames_model(params)
 yamnet_features.load_weights(path_model+'yamnet.h5')
@@ -53,43 +53,71 @@ path_data_train = path_root+"Datasets/airplanes_v0/training_data/"
 min_sample_seconds=params.PATCH_WINDOW_SECONDS  # Should be at least equal to params.PATCH_WINDOW_SECONDS
 max_sample_seconds=1000.0
 
-yamnet_functions.sample_count(
-    path_data_train,
-    params, 
-    min_sample_seconds=min_sample_seconds,
-    max_sample_seconds=max_sample_seconds,
-    use_rosa=True,
-    DESIRED_SR=params.SAMPLE_RATE)
+# yamnet_functions.sample_count(
+#     path_data_train,
+#     params, 
+#     min_sample_seconds=min_sample_seconds,
+#     max_sample_seconds=max_sample_seconds,
+#     use_rosa=True,
+#     DESIRED_SR=params.SAMPLE_RATE)
 
 # Based on the number of original samples decide how much data augmentation is required by each class
-num_augmentations=[0,0]
+num_augmentations=[5,5]
+perform_augmentation = True
 
-samples, labels = yamnet_functions.data_augmentation(
-    path_data_train, 
-    yamnet_features,
-    num_augmentations=num_augmentations,
-    min_sample_seconds=min_sample_seconds,
-    max_sample_seconds=max_sample_seconds,
-    use_rosa=True,
-    DESIRED_SR=params.SAMPLE_RATE)
+patch_hop_seconds_str = str(params.PATCH_HOP_SECONDS).replace('.','')
+features_str = 'features_'+patch_hop_seconds_str+'_'+str(num_augmentations[0])+'_'+str(num_augmentations[1]) 
+labels_str = 'labels_'+patch_hop_seconds_str+'_'+str(num_augmentations[0])+'_'+str(num_augmentations[1]) 
 
-# TODO: To ensure a balanced dataset, randomly delete [samples,labels] from other classes to match number of samples of least frequent class
+if perform_augmentation == True:
+    samples, labels = yamnet_functions.data_augmentation(
+        path_data_train, 
+        yamnet_features,
+        num_augmentations=num_augmentations,
+        min_sample_seconds=min_sample_seconds,
+        max_sample_seconds=max_sample_seconds,
+        use_rosa=True,
+        DESIRED_SR=params.SAMPLE_RATE)
 
+    # Randomise sample/label order
+    import random
 
-# Randomise sample/label order
-import random
+    idxs = list(range(len(labels)))
+    random.shuffle(idxs)
+    samples = [samples[i] for i in idxs]
+    labels = [labels[i] for i in idxs]
 
-idxs = list(range(len(labels)))
-random.shuffle(idxs)
+    # NumPy arrays are more efficient, especially for large arrays
+    samples = np.array(samples)
+    labels = np.array(labels)
 
-samples = [samples[i] for i in idxs]
-labels = [labels[i] for i in idxs]
+    # TODO: To ensure a balanced dataset, randomly delete [samples,labels] from other classes to match number of samples of least frequent class
+    _, counts = np.unique(labels, return_counts=True)
+    idx_locs_delete = []
 
-samples = np.array(samples)
-labels = np.array(labels)
+    for idx in np.unique(labels):
+        idx_loc = np.where(labels==idx)[0]
 
-print("Sample size: {} and type: {}".format(samples.shape, samples.dtype))
+        if len(idx_loc) > counts.min():
+            idx_locs_delete = np.append(idx_locs_delete,idx_loc[counts.min()-1:-1])
+
+    labels = np.delete(labels, idx_locs_delete.astype(int))
+    samples = np.delete(samples, idx_locs_delete.astype(int), axis=0)
+
+    # Save features and corresponding labels
+    np.save(path_data_train+features_str, samples)
+    np.save(path_data_train+labels_str, labels)
+
+else:
+    samples = np.load(path_data_train+features_str+'.npy')
+    labels = np.load(path_data_train+labels_str+'.npy')
+
+_, counts = np.unique(labels, return_counts=True)
+
+print("\nSample size: {} and type: {}".format(samples.shape, samples.dtype))
 print("Label size:  {}".format(labels.shape))
+print("Sample distribution per class (after balancing): {}\n".format(counts))
+
 
 # Classifier definition
 from tensorflow.keras import Model, layers
@@ -119,20 +147,21 @@ yamnet_planes = yamnet_classifier(
 # Optimisation configuration
 #opt = Adam(learning_rate=0.001)
 opt = SGD(lr=0.001, decay=1e-6, momentum=0.9, nesterov=True)
-
 yamnet_planes.compile(optimizer=opt, loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
 # Train the classifier
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
 from time import time
+import datetime
 
 # Callbacks
 es = EarlyStopping(monitor='val_loss', mode='min', verbose=1)
-save_best = ModelCheckpoint('top_model.hdf5', save_best_only=True, monitor='val_loss', mode='min')
-log_dir = "logs/{}".format(int(time()))
+time_now = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+save_best = ModelCheckpoint('saved_models/top_model_'+time_now+'.hdf5', save_best_only=True, monitor='val_loss', mode='min')
+# log_dir = "logs/{}".format(int(time()))
 # tensorboard = TensorBoard(log_dir=log_dir, histogram_freq=1)
 
-epochs = 10
+epochs = 100
 
 time_start = time()
 history = yamnet_planes.fit(samples, labels, epochs=epochs, validation_split=0.1, callbacks=[save_best])
