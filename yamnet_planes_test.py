@@ -21,7 +21,7 @@ elif tf_ver[0] == "2":
 # Add/append required paths
 import os, sys
 
-path_root = '/home/anakin/' #path to root folder
+path_root = '/home/ups/Proyectos/Vigia_sonido/' #path to root folder
 path_model = path_root+"Models/yamnet_planes/"
 # path_model = input("Enter the path of your repository: ") # ask user for path_model
 assert os.path.exists(path_model)
@@ -34,7 +34,7 @@ import yamnet_functions
 import yamnet_original.params as params
 import yamnet_modified as yamnet_modified
 
-params.PATCH_HOP_SECONDS = 0.48 # During testing, this should match the detection frequency (e.g. 2Hz ~= 0.48s)
+params.PATCH_HOP_SECONDS = 0.96 # During testing, this should match the imposed inference time (0.48s ~= 2Hz)
 DESIRED_SR = params.SAMPLE_RATE # required by YAMNet
 
 yamnet_features = yamnet_modified.yamnet_frames_model(params)
@@ -45,7 +45,7 @@ yamnet_features.load_weights(path_model+'yamnet.h5')
 from tensorflow.keras.models import load_model
 from tensorflow.keras.optimizers import SGD, Adam
 
-datetime = '20200822_222350' # TODO: extract from metadata
+datetime = '20200823_025302' # TODO: extract from metadata
 
 yamnet_planes = load_model(path_model+'saved_models/top_model_'+datetime+'.hdf5')    
 opt = SGD(lr=0.001, decay=1e-6, momentum=0.9, nesterov=True)    # TODO: extract from metadata
@@ -56,10 +56,15 @@ import yamnet_original.params as params
 DESIRED_SR = params.SAMPLE_RATE # required by YAMNet
 
 # Scores for testing folder
+prediction_confidence = 0.9 # [0.5:1.0) where 0.5 is full confidence and ~1.0 is little confidence
+
 class_labels = ["not_plane", "plane"]   # TODO: extract from metadata
 reference_class = 0
-path_data_test = path_root+'Datasets/airplanes_v0/holdout_data/'+class_labels[reference_class]+'/'
+path_data_test = path_root+'Datasets/airplanes_v3/holdout_data/'+class_labels[reference_class]+'/'
 arr = os.listdir(path_data_test)
+
+# path_data_test = path_model
+# arr = ['tractor.wav']
 
 predicted_class = []
 
@@ -72,6 +77,12 @@ for fname in arr:
     scores = yamnet_functions.run_models(waveform, yamnet_features, yamnet_planes, strip_silence=False)
     scores = np.array(scores)
 
+    prediction_loc, _ = np.where(scores>=prediction_confidence)
+    scores = scores[prediction_loc, :]
+    if prediction_loc.size == 0:
+        print("Prediction not available for current prediction confidence: {}".format(prediction_confidence))
+        continue
+
     if scores[0][0] != -1:
         predicted_class = np.append(predicted_class, scores.argmax(1))
         scores_mean = np.mean(scores, axis=0)
@@ -80,4 +91,4 @@ for fname in arr:
 
 detection_rate = sum(predicted_class==reference_class)/len(predicted_class)*100
 print('True positive rate for {} class: {:4.2f}%'.format(class_labels[reference_class], detection_rate))
-
+print('False positive rate for {} class: {:4.2f}%'.format(class_labels[reference_class], 100-detection_rate))
