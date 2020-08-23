@@ -22,7 +22,7 @@ elif tf_ver[0] == "2":
 # Add/append required paths
 import os, sys
 
-path_root = '/home/anakin/' #path to root folder
+path_root = '/home/ups/Proyectos/Vigia_sonido/' #path to root folder
 path_model = path_root+"Models/yamnet_planes/"
 # path_model = input("Enter the path of your repository: ") # ask user for path_model
 assert os.path.exists(path_model)
@@ -45,15 +45,16 @@ yamnet_features = yamnet_modified.yamnet_frames_model(params)
 yamnet_features.load_weights(path_model+'yamnet.h5')
 
 
-# Data augmentation
-path_data_train = path_root+"Datasets/airplanes_v0/training_data/"
+# Count class samples, perform data augmentation, or load a specific augmented dataset
+path_data_train = path_root+"Datasets/airplanes_v3/training_data/"
 # path_data_train = input("Enter the path of your training dataset: ") # Ask user for path_data_train
 
 # Count the number of original samples for each class
 min_sample_seconds=params.PATCH_WINDOW_SECONDS  # Should be at least equal to params.PATCH_WINDOW_SECONDS
 max_sample_seconds=1000.0
 
-# yamnet_functions.sample_count(
+sample_numbers = [0]
+# sample_numbers = yamnet_functions.sample_count(
 #     path_data_train,
 #     params, 
 #     min_sample_seconds=min_sample_seconds,
@@ -62,8 +63,8 @@ max_sample_seconds=1000.0
 #     DESIRED_SR=params.SAMPLE_RATE)
 
 # Based on the number of original samples decide how much data augmentation is required by each class
-num_augmentations=[5,5]
-perform_augmentation = True
+num_augmentations=[0,12]
+perform_augmentation = False
 
 patch_hop_seconds_str = str(params.PATCH_HOP_SECONDS).replace('.','')
 features_str = 'features_'+patch_hop_seconds_str+'_'+str(num_augmentations[0])+'_'+str(num_augmentations[1]) 
@@ -136,18 +137,28 @@ def yamnet_classifier(input_size=1024,
 from tensorflow.keras.optimizers import SGD, Adam
 
 features_img_length = 1024
-num_hidden = 1024
+num_hidden = [1024]
 num_classes = 2
 
 yamnet_planes = yamnet_classifier(
     input_size=features_img_length, 
-    num_hidden=num_hidden,
+    num_hidden=num_hidden[0],   # TODO: modify so that the length of num_hidden determines the number of hidden layers with for loop
     num_classes=num_classes)
 
 # Optimisation configuration
-#opt = Adam(learning_rate=0.001)
-opt = SGD(lr=0.001, decay=1e-6, momentum=0.9, nesterov=True)
-yamnet_planes.compile(optimizer=opt, loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+opt_type = 'SGD'
+loss_type = 'sparse_categorical_crossentropy'
+
+if opt_type == 'Adam':
+    opt_conf = [0.001]
+    opt = Adam(learning_rate=opt_conf[0])
+elif opt_type == 'SGD':
+    opt_conf = [0.001, 1e-6, 0.9, True]
+    opt = SGD(lr=opt_conf[0], decay=opt_conf[1], momentum=opt_conf[2], nesterov=opt_conf[3])
+else:
+    raise NameError(opt_type+' is not a valid optimiser')
+
+yamnet_planes.compile(optimizer=opt, loss=loss_type, metrics=['accuracy'])
 
 # Train the classifier
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
@@ -157,15 +168,30 @@ import datetime
 # Callbacks
 es = EarlyStopping(monitor='val_loss', mode='min', verbose=1)
 time_now = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-save_best = ModelCheckpoint('saved_models/top_model_'+time_now+'.hdf5', save_best_only=True, monitor='val_loss', mode='min')
+path_model_save = path_model+'saved_models/top_model_'+time_now+'.hdf5'
+save_best = ModelCheckpoint(path_model_save, save_best_only=True, monitor='val_loss', mode='min')
 # log_dir = "logs/{}".format(int(time()))
 # tensorboard = TensorBoard(log_dir=log_dir, histogram_freq=1)
 
-epochs = 100
+epochs = 2
+val_split = 0.1
 
 time_start = time()
-history = yamnet_planes.fit(samples, labels, epochs=epochs, validation_split=0.1, callbacks=[save_best])
+history = yamnet_planes.fit(samples, labels, epochs=epochs, validation_split=val_split, callbacks=[save_best])
 time_end = time()
 time_train = round(time_end - time_start)
+
+train_loss = history.history['loss']
+train_acc = history.history['accuracy']
+val_loss = history.history['val_loss']
+val_acc = history.history['val_accuracy']
+
+# Write metadata file containing hyperparameters for data augmentation and training
+metadata_headers = ['path_data_train','path_hop_seconds','samples','aug','samples_aug','classifier_conf','optimiser','optimiser_params','loss_function','path_model','epochs','val_split','train_loss','train_accuracy','val_loss','val_accuracy']
+# metadata_values = np.zeros((1,len(metadata_headers)), dtype=int)
+metadata_values = [path_data_train, params.PATCH_HOP_SECONDS, sample_numbers, num_augmentations, counts.tolist(), num_hidden, opt_type, opt_conf, loss_type, path_model_save, epochs, val_split, train_loss, train_acc, val_loss, val_acc]
+metadata_df = pd.DataFrame([metadata_values],columns=metadata_headers)
+path_metadata = path_data_train+'metadata_'+patch_hop_seconds_str+'_'+str(num_augmentations[0])+'_'+str(num_augmentations[1])+'_'+time_now+'.csv'
+metadata_df.to_csv(path_metadata,index=False)
 
 print(f"{epochs} epochs in {round(time_train/3600, 3)} hours ({time_train/epochs} seconds per epoch)")
