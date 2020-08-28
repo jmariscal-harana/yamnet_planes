@@ -2,6 +2,9 @@
 import pyaudio, librosa
 import numpy as np
 import soundfile as sf
+import yamnet_original.features
+import yamnet_original.params
+
 
 # Convert input waveform to numpy 
 def read_wav(
@@ -143,6 +146,68 @@ def sample_count(
     return sample_numbers
 
 
+def read_wav_path(
+    data_path,
+    params, 
+    min_sample_seconds=1.0,
+    max_sample_seconds=10.0,
+    use_rosa=True,
+    DESIRED_SR=16000):
+    """Loads data from .wav files under data_path to count the number of samples from each class prior 
+    to data augmentation.
+    """
+    # Get path to each folder within data_path
+    label_dirs = get_top_dirs(data_path)
+    
+    MIN_WAV_SIZE = int(DESIRED_SR * min_sample_seconds)
+    MAX_WAV_SIZE = int(DESIRED_SR * max_sample_seconds)
+    
+    sample_numbers = []
+    
+    patches = []
+    labels = []
+
+    print("Counting number of samples corresponding to each class\n")
+    for label_idx, label_dir in enumerate(label_dirs):
+        
+        label_name = os.path.basename(label_dir)    # Get label name from current folder name
+        wavs = glob.glob(os.path.join(label_dir, "*.wav"))  # Get all .wav file names within current folder
+        sample_number = 0
+
+        for wav_file in tqdm(wavs):
+            waveform = read_wav(wav_file, DESIRED_SR, use_rosa=use_rosa)    # Read waveform
+
+            if len(waveform) < MIN_WAV_SIZE:
+                print("\nIgnoring audio shorter than {} seconds".format(min_sample_seconds))
+                continue 
+
+            if len(waveform) > MAX_WAV_SIZE:
+                waveform = waveform[:MAX_WAV_SIZE]
+                print("\nIgnoring audio data after {} seconds".format(max_sample_seconds))
+
+            spectogram = features.waveform_to_log_mel_spectrogram(waveform)
+            current_patches = features.spectrogram_to_patches(spectogram, params)
+
+            for patch in dense_out:
+                    patches.append(patch)
+                    labels.append(label_idx)
+            # Calculate number of samples
+            audio_duration = len(waveform)/DESIRED_SR
+            frame_duration = params.PATCH_WINDOW_SECONDS
+            hop_duration = params.PATCH_HOP_SECONDS
+
+            sample_number += 1 + np.floor((audio_duration - frame_duration)/hop_duration)
+
+        sample_numbers.append(int(sample_number))
+
+    for label_idx, label_dir in enumerate(label_dirs):
+        label_name = os.path.basename(label_dir)
+
+        print("'{}' samples: {}".format(label_name, sample_numbers[label_idx]))
+
+    return parches, labels
+
+
 from scipy.io.wavfile import write
 
 def data_augmentation(
@@ -211,6 +276,7 @@ def data_augmentation(
         print("{:<20} samples: {}%".format(label_name, label_occurrences_percent))
 
     return _samples, _labels
+
 
 
 def run_models(
