@@ -54,17 +54,18 @@ min_sample_seconds=params.PATCH_WINDOW_SECONDS  # Should be at least equal to pa
 max_sample_seconds=1000.0
 
 sample_numbers = [0]
+
 # sample_numbers = yamnet_functions.sample_count(
 #     path_data_train,
 #     params, 
 #     min_sample_seconds=min_sample_seconds,
-#     max_sample_seconds=max_sample_seconds,
+#     max_sample_seconds=min_sample_seconds,
 #     use_rosa=True,
 #     DESIRED_SR=params.SAMPLE_RATE)
 
 # Based on the number of original samples decide how much data augmentation is required by each class
-num_augmentations=[0,12]
-perform_augmentation = False
+num_augmentations=[0,7]
+perform_augmentation = True
 
 patch_hop_seconds_str = str(params.PATCH_HOP_SECONDS).replace('.','')
 features_str = 'features_'+patch_hop_seconds_str+'_'+str(num_augmentations[0])+'_'+str(num_augmentations[1]) 
@@ -173,7 +174,7 @@ save_best = ModelCheckpoint(path_model_save, save_best_only=True, monitor='val_l
 # log_dir = "logs/{}".format(int(time()))
 # tensorboard = TensorBoard(log_dir=log_dir, histogram_freq=1)
 
-epochs = 2
+epochs = 1000
 val_split = 0.1
 
 time_start = time()
@@ -187,7 +188,9 @@ val_loss = history.history['val_loss']
 val_acc = history.history['val_accuracy']
 
 # Write metadata file containing hyperparameters for data augmentation and training
-metadata_headers = ['path_data_train','path_hop_seconds','samples','aug','samples_aug','classifier_conf','optimiser','optimiser_params','loss_function','path_model','epochs','val_split','train_loss','train_accuracy','val_loss','val_accuracy']
+import pandas as pd
+
+metadata_headers = ['path_data_train','patch_hop_seconds','samples','aug','samples_aug','classifier_conf','optimiser','optimiser_params','loss_function','path_model','epochs','val_split','train_loss','train_accuracy','val_loss','val_accuracy']
 # metadata_values = np.zeros((1,len(metadata_headers)), dtype=int)
 metadata_values = [path_data_train, params.PATCH_HOP_SECONDS, sample_numbers, num_augmentations, counts.tolist(), num_hidden, opt_type, opt_conf, loss_type, path_model_save, epochs, val_split, train_loss, train_acc, val_loss, val_acc]
 metadata_df = pd.DataFrame([metadata_values],columns=metadata_headers)
