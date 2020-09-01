@@ -81,7 +81,7 @@ def random_augment_wav(
     
     # Random noise
     if np.random.uniform() > 0.5:
-        NR = 0.001 # 0.1
+        NR = 0.001 # 0.001
         wav_data += np.random.uniform(-NR, NR, size=wav_data.shape)
     
     return wav_data
@@ -252,3 +252,16 @@ def play_audio(
         p.play()
         print()
     os.remove(audio)
+
+
+import sox
+
+def get_audio_durations(folder):
+    seconds_total = 0
+
+    files = [file for file in os.listdir(folder) if file.endswith('.wav')]
+    for file in files:
+        seconds = sox.file_info.duration(folder+file)
+        seconds_total += seconds
+
+    print('Folder: {}\nSeconds:  {:.2f}\nMinutes:    {:.2f}\nHours:      {:.2f}'.format(folder,seconds_total,seconds_total/60,seconds_total/3600))
