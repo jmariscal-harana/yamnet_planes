@@ -64,7 +64,7 @@ sample_numbers = [0]
 #     DESIRED_SR=params.SAMPLE_RATE)
 
 # Based on the number of original samples decide how much data augmentation is required by each class
-num_augmentations=[0,0]
+num_augmentations=[1,25]
 perform_augmentation = False
 
 patch_hop_seconds_str = str(params.PATCH_HOP_SECONDS).replace('.','')
@@ -169,7 +169,7 @@ import datetime
 # Callbacks
 es = EarlyStopping(monitor='val_loss', mode='min', verbose=1)
 time_now = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-path_yamnet_save = path_yamnet+'saved_models/top_model_'+time_now+'.hdf5'
+path_yamnet_save = path_yamnet+'saved_models/yamnet_'+time_now+'.hdf5'
 save_best = ModelCheckpoint(path_yamnet_save, save_best_only=True, monitor='val_loss', mode='min')
 # log_dir = "logs/{}".format(int(time()))
 # tensorboard = TensorBoard(log_dir=log_dir, histogram_freq=1)
