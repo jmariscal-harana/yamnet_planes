@@ -224,7 +224,7 @@ def run_models(
         waveform = remove_silence(waveform, top_db=10)
     
     if len(waveform) < min_samples:
-        print("input too short after silence removal")
+        print("The waveform is too short! Ignoring.")
         return [[-1, -1]] #this value will be used to discard this audio later
     
     _, _, dense_out, _ = yamnet_features.predict(np.reshape(waveform, [1, -1]), steps=1)
