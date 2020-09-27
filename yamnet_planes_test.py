@@ -18,6 +18,8 @@ elif tf_ver[0] == "2":
     gpu_options=tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.05)
     sess=tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(gpu_options=gpu_options))
 
+
+##########################################
 # Add/append required paths
 import os, sys
 
@@ -27,6 +29,8 @@ path_model = path_root+"Models/yamnet_planes/"
 assert os.path.exists(path_model)
 sys.path.append(path_model)
 
+
+##########################################
 # Load functions
 import yamnet_functions
 
@@ -34,51 +38,53 @@ import yamnet_functions
 import yamnet_original.params as params
 import yamnet_modified as yamnet_modified
 
+
+##########################################
+# Specify test parameters
+path_data_test = path_root+'Datasets/airplanes_v3/holdout_data/'
+class_labels = ["not_plane", "plane"]   # TODO: extract from metadata
+
 params.PATCH_HOP_SECONDS = 0.24 # During testing, this should match the imposed inference time (0.48s ~= 2Hz)
 DESIRED_SR = params.SAMPLE_RATE # required by YAMNet
 
 # Model name TODO: extract from metadata
-# datetime = '20200824_234802' 	# Undersampling
-# datetime = '20200823_025302'  # Data aug
-# datetime = '20200823_210326'	# Data aug*2
-# datetime = '20200825_011907'	# Hybrid
+# model_name = '20200824_234802' 	# Undersampling
+# model_name = '20200823_025302'  # Data aug
+# model_name = '20200823_210326'	# Data aug*2
+# model_name = '20200825_011907'	# Hybrid
 
 PATCH_HOP_SECONDS = [0.96, 0.48, 0.24, 0.096]
-datetimes = ['20200824_234802', '20200823_025302', '20200823_210326', '20200825_011907']
+model_names = ['20200824_234802', '20200823_025302', '20200823_210326', '20200825_011907']
 
-# for params.PATCH_HOP_SECONDS in PATCH_HOP_SECONDS:
 
-yamnet_features = yamnet_modified.yamnet_frames_model(params)
-yamnet_features.load_weights(path_model+'yamnet.h5')
-
+##########################################
 # Load model and test
 from tensorflow.keras.models import load_model
 from tensorflow.keras.optimizers import SGD, Adam
 
-for datetime in datetimes:
+test_mode = 2 # 1: proportional thresholding, 2: ROC thresholding
+prediction_confidence = 0.5 # [0.5:1.0) where 0.5 is full confidence and ~1.0 is little confidence
 
-    path_model_save = path_model+'saved_models/yamnet_'+datetime+'.hdf5'
+# for params.PATCH_HOP_SECONDS in PATCH_HOP_SECONDS:
 
+# Load YAMNet
+yamnet_features = yamnet_modified.yamnet_frames_model(params)
+yamnet_features.load_weights(path_model+'yamnet.h5')
+
+for model_name in model_names:
+
+    path_model_save = path_model+'saved_models/yamnet_'+model_name+'.hdf5'
+
+    # Load yamnet_planes model
     yamnet_planes = load_model(path_model_save)    
     opt = SGD(lr=0.001, decay=1e-6, momentum=0.9, nesterov=True)    # TODO: extract from metadata
     yamnet_planes.compile(optimizer=opt, loss='sparse_categorical_crossentropy', metrics=['accuracy'])  # TODO: extract from metadata???
     yamnet_planes.summary()
 
-    import yamnet_original.params as params
-    DESIRED_SR = params.SAMPLE_RATE # required by YAMNet
-
-    class_labels = ["not_plane", "plane"]   # TODO: extract from metadata
-    path_data_test = path_root+'Datasets/airplanes_v3/holdout_data/'
-
-    # Scores for testing folder
-    test_mode = 2 # 1: proportional thresholding, 2: ROC thresholding
-
     processed_samples = [0, 0]
 
     # Method 1: apply equal threshold to all classes
-    if test_mode == 1:
-        prediction_confidence = 0.5 # [0.5:1.0) where 0.5 is full confidence and ~1.0 is little confidence
-        
+    if test_mode == 1:        
         not_discarded = [0, 0]
         detection_rate = []
 
@@ -89,13 +95,13 @@ for datetime in datetimes:
             predicted_class = []
 
             for fname in arr:
-
                 print(fname)
                 fname = path_data_test_class+fname
                 waveform = yamnet_functions.read_wav(fname, DESIRED_SR, use_rosa=1)
 
                 scores = yamnet_functions.run_models(waveform, yamnet_features, yamnet_planes, strip_silence=False)
                 scores = np.array(scores)
+
                 if scores[0][0] == -1:
                     continue
                         
@@ -145,10 +151,6 @@ for datetime in datetimes:
 
                 processed_samples[reference_class] += len(scores)
                 scores = scores[:, 0]
-                # if reference_class == 0: # TODO: make this automatic
-                #     print('WARNING - HARDCODED! Randomly downsampling the "not_plane" class to achieve class balance')
-                #     random
-
                 predicted_class = np.append(predicted_class, (scores <= prediction_thresholds), axis=1).astype(int)
                 
             detection_rate_current = np.sum((predicted_class == reference_class), axis=1) / predicted_class.shape[1] * 100
