@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import tensorflow as tf
 
+
 # Decide what type of messages are displayed by TensorFlow (ERROR, WARN, INFO, DEBUG, FATAL)
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
