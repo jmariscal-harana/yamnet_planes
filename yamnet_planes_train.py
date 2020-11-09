@@ -1,9 +1,11 @@
-import pyaudio, librosa
+##########################################
+# GLOBAL IMPORTS
+import pyaudio, librosa, os, sys, datetime
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import tensorflow as tf
-
+from time import time
 
 # Decide what type of messages are displayed by TensorFlow (ERROR, WARN, INFO, DEBUG, FATAL)
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
@@ -14,29 +16,31 @@ tf.compat.v1.disable_eager_execution()
 # OPTION 2: maximum memory allocation per session (0-1 = 0-100%)
 tf_ver = tf.__version__
 if tf_ver[0] == "1":
-    gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=1.00)
+    gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.9)
     sess=tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 elif tf_ver[0] == "2":
-    gpu_options=tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=1.00)
+    gpu_options=tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.9)
     sess=tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(gpu_options=gpu_options))
 
 
-# Add/append required paths
-import os, sys
+##########################################
+# PATHS
+path_root = '/home/ups/Proyectos/vigia-sonido/' #path to root folder
+path_yamnet = os.path.join(path_root, 'Models/yamnet_planes/')
+path_yamnet_original = os.path.join(path_yamnet, 'yamnet_original/') #path to original yamnet files
+path_data_train = os.path.join(path_root, 'Datasets/small_aircraft_v1/training_data/')
+path_yamnet_save = os.path.join(path_root, 'Models_saved/yamnet/')
 
-path_root = '/home/ups/Proyectos/Vigia_sonido/' #path to root folder
-path_yamnet = path_root+"Models/yamnet_planes/"
-# path_yamnet = input("Enter the path of your repository: ") # ask user for path_yamnet
 assert os.path.exists(path_yamnet)
-sys.path.append(path_yamnet)
-path_data_train = path_root+"Datasets/airplanes_v3/training_data/"
-# path_data_train = input("Enter the path of your training dataset: ") # Ask user for path_data_train
-
-path_yamnet_original = path_yamnet+'yamnet_original/' #path to original yamnet files
 assert os.path.exists(path_yamnet_original)
+assert os.path.exists(path_data_train)
+assert os.path.exists(path_yamnet_save)
+
+sys.path.append(path_yamnet)
 
 
-# Load functions
+##########################################
+# GLOBAL CONFIG
 import yamnet_functions
 
 # Modified YAMNet model for feature extraction
@@ -45,11 +49,14 @@ import yamnet_modified as yamnet_modified
 
 params.PATCH_HOP_SECONDS = 0.096 #low values: higher accuracy but higher computational cost
 
+patch_hop_seconds_str = str(params.PATCH_HOP_SECONDS).replace('.','')
+
 yamnet_features = yamnet_modified.yamnet_frames_model(params)
 yamnet_features.load_weights(path_yamnet+'yamnet.h5')
 
 
-# Count class samples, perform data augmentation, or load a specific augmented dataset
+##########################################
+# DATA ANALYSIS
 # Count the number of original samples for each class
 min_sample_seconds=params.PATCH_WINDOW_SECONDS  # Should be at least equal to params.PATCH_WINDOW_SECONDS
 max_sample_seconds=1000.0
@@ -64,13 +71,15 @@ sample_numbers = [0]
 #     use_rosa=True,
 #     DESIRED_SR=params.SAMPLE_RATE)
 
+
+##########################################
+# DATA AUGMENTATION and FEATURE EXTRACTION
 # Based on the number of original samples decide how much data augmentation is required by each class
-num_augmentations=[1,25]
+num_augmentations=[0,7]
 perform_augmentation = False
 
-patch_hop_seconds_str = str(params.PATCH_HOP_SECONDS).replace('.','')
-features_str = 'yamnet_features_'+patch_hop_seconds_str+'_'+str(num_augmentations[0])+'_'+str(num_augmentations[1]) 
-labels_str = 'yamnet_labels_'+patch_hop_seconds_str+'_'+str(num_augmentations[0])+'_'+str(num_augmentations[1]) 
+path_features = os.path.join(path_data_train, 'features', 'yamnet','yamnet_features_'+patch_hop_seconds_str+'_'+str(num_augmentations[0])+'_'+str(num_augmentations[1]))
+path_labels = os.path.join(path_data_train, 'features', 'yamnet','yamnet_labels_'+patch_hop_seconds_str+'_'+str(num_augmentations[0])+'_'+str(num_augmentations[1]))
 
 if perform_augmentation == True:
     samples, labels = yamnet_functions.data_augmentation(
@@ -94,7 +103,7 @@ if perform_augmentation == True:
     samples = np.array(samples)
     labels = np.array(labels)
 
-    # TODO: To ensure a balanced dataset, randomly delete [samples,labels] from other classes to match number of samples of least frequent class
+    # To ensure a balanced dataset, randomly delete [samples,labels] from other classes to match number of samples of least frequent class
     _, counts = np.unique(labels, return_counts=True)
     idx_locs_delete = []
 
@@ -108,12 +117,14 @@ if perform_augmentation == True:
     samples = np.delete(samples, idx_locs_delete.astype(int), axis=0)
 
     # Save features and corresponding labels
-    np.save(path_data_train+features_str, samples)
-    np.save(path_data_train+labels_str, labels)
+    np.save(path_features, samples)
+    np.save(path_labels, labels)
 
-else:
-    samples = np.load(path_data_train+features_str+'.npy')
-    labels = np.load(path_data_train+labels_str+'.npy')
+
+##########################################
+# FEATURE DATA LOADING
+samples = np.load(path_features + '.npy')
+labels = np.load(path_labels + '.npy')
 
 _, counts = np.unique(labels, return_counts=True)
 
@@ -122,7 +133,8 @@ print("Label size:  {}".format(labels.shape))
 print("Sample distribution per class (after balancing): {}\n".format(counts))
 
 
-# Classifier definition
+##########################################
+# CLASSIFIER
 from tensorflow.keras import Model, layers
 
 def yamnet_classifier(input_size=1024,
@@ -162,20 +174,21 @@ else:
 
 yamnet_planes.compile(optimizer=opt, loss=loss_type, metrics=['accuracy'])
 
-# Train the classifier
+
+##########################################
+# TRAINING
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
-from time import time
-import datetime
 
 # Callbacks
 es = EarlyStopping(monitor='val_loss', mode='min', verbose=1)
 time_now = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-path_yamnet_save = path_yamnet+'saved_models/yamnet_'+time_now+'.hdf5'
-save_best = ModelCheckpoint(path_yamnet_save, save_best_only=True, monitor='val_loss', mode='min')
+path_yamnet_save_file = os.path.join(path_yamnet_save, time_now+'_yamnet.hdf5')
+
+save_best = ModelCheckpoint(path_yamnet_save_file, save_best_only=True, monitor='val_loss', mode='min')
 # log_dir = "logs/{}".format(int(time()))
 # tensorboard = TensorBoard(log_dir=log_dir, histogram_freq=1)
 
-epochs = 1000
+epochs = 1
 val_split = 0.1
 
 time_start = time()
@@ -188,12 +201,16 @@ train_acc = history.history['accuracy']
 val_loss = history.history['val_loss']
 val_acc = history.history['val_accuracy']
 
+
+##########################################
+# METADATA
 # Write metadata file containing hyperparameters for data augmentation and training
 metadata_headers = ['path_data_train','patch_hop_seconds','samples','aug','samples_aug','classifier_conf','optimiser','optimiser_params','loss_function','path_model','epochs','val_split','train_loss','train_accuracy','val_loss','val_accuracy']
 # metadata_values = np.zeros((1,len(metadata_headers)), dtype=int)
 metadata_values = [path_data_train, params.PATCH_HOP_SECONDS, sample_numbers, num_augmentations, counts.tolist(), num_hidden, opt_type, opt_conf, loss_type, path_yamnet_save, epochs, val_split, train_loss, train_acc, val_loss, val_acc]
 metadata_df = pd.DataFrame([metadata_values],columns=metadata_headers)
-path_metadata = path_data_train+'metadata_'+patch_hop_seconds_str+'_'+str(num_augmentations[0])+'_'+str(num_augmentations[1])+'_'+time_now+'.csv'
+path_metadata = os.path.join(path_yamnet_save, time_now+'_metadata_'+ patch_hop_seconds_str +'_'+str(num_augmentations[0])+'_'+str(num_augmentations[1])+'.csv')
+
 metadata_df.to_csv(path_metadata,index=False)
 
 print(f"{epochs} epochs in {round(time_train/3600, 3)} hours ({time_train/epochs} seconds per epoch)")

@@ -239,29 +239,29 @@ def run_models(
 
 
 # Listen to audio function (workaround for VSCode)
-import scipy.io.wavfile, vlc, os
+# import scipy.io.wavfile, vlc, os
 
-def play_audio(
-    file_tmp,
-    sr,
-    waveform):
+# def play_audio(
+#     file_tmp,
+#     sr,
+#     waveform):
 
-    scipy.io.wavfile.write(file_tmp, sr, waveform)
-    for audio in [file_tmp]:
-        p = vlc.MediaPlayer(audio)
-        p.play()
-        print()
-    os.remove(audio)
+#     scipy.io.wavfile.write(file_tmp, sr, waveform)
+#     for audio in [file_tmp]:
+#         p = vlc.MediaPlayer(audio)
+#         p.play()
+#         print()
+#     os.remove(audio)
 
 
-import sox
+# import sox
 
-def get_audio_durations(folder):
-    seconds_total = 0
+# def get_audio_durations(folder):
+#     seconds_total = 0
 
-    files = [file for file in os.listdir(folder) if file.endswith('.wav')]
-    for file in files:
-        seconds = sox.file_info.duration(folder+file)
-        seconds_total += seconds
+#     files = [file for file in os.listdir(folder) if file.endswith('.wav')]
+#     for file in files:
+#         seconds = sox.file_info.duration(folder+file)
+#         seconds_total += seconds
 
-    print('Folder: {}\nSeconds:  {:.2f}\nMinutes:    {:.2f}\nHours:      {:.2f}'.format(folder,seconds_total,seconds_total/60,seconds_total/3600))
+#     print('Folder: {}\nSeconds:  {:.2f}\nMinutes:    {:.2f}\nHours:      {:.2f}'.format(folder,seconds_total,seconds_total/60,seconds_total/3600))
