@@ -4,22 +4,21 @@ import pandas as pd
 import os
 
 ##########################################
-path_results = '/home/ups/Proyectos/Vigia_sonido/Datasets/airplanes_v3/holdout_data/'
+path_results = '/home/ups/Proyectos/vigia-sonido/Results/small_aircraft_v1/yamnet/'
 
-# # Plots for fixed hop
-# inference_hop = '024'
-# title = 'Inference hop: 0.{} [s]'.format(inference_hop[1:])
+# Plots for fixed hop
+inference_hop = '0096'
+title = 'Inference hop: 0.{} [s]'.format(inference_hop[1:])
 
-# datetimes = ['20200824_234802', '20200823_025302', '20200823_210326', '20200825_011907']
-# labels = ['Undersampling', 'Data augmentation', 'Data augmentation*2', 'Hybrid']
-
+datetimes = ['20200824_234802', '20200823_025302', '20200823_210326', '20200825_011907']
+labels = ['Undersampling', 'Data augmentation', 'Data augmentation*2', 'Hybrid']
 
 # Plots for fixed dataset
-datetime = '20200825_011907
-title = 'Hybrid'
+# datetime = '20200825_011907
+# title = 'Hybrid'
 
-inference_hops = ['096', '048', '024', '0096']
-labels = ['0.96 s', '0.48 s', '0.24 s', '0.096 s']
+# inference_hops = ['096', '048', '024', '0096']
+# labels = ['0.96 s', '0.48 s', '0.24 s', '0.096 s']
 
 fig = plt.figure(figsize=(5,5))
 ax = fig.add_subplot(1, 1, 1)  # create an axes object in the figure
@@ -28,10 +27,10 @@ ax = fig.add_axes([0., 0., 1., 1., ])
 P = []
 N = []
 
-# for loc, datetime in enumerate(datetimes):
-for loc, inference_hop in enumerate(inference_hops):
-    # path_results_pdf_file = path_results+'test_yamnet_'+inference_hop+'.pdf'
-    path_results_pdf_file = path_results+'test_yamnet_'+title+'.pdf'
+for loc, datetime in enumerate(datetimes):
+# for loc, inference_hop in enumerate(inference_hops):
+    path_results_pdf_file = path_results+'test_yamnet_'+inference_hop+'.pdf'
+    # path_results_pdf_file = path_results+'test_yamnet_'+title+'.pdf'
 
     path_results_csv_file = 'test_yamnet_'+datetime+'_'+inference_hop+'_thresholding_ROC_PR.csv'
     path_results_csv = os.path.join(path_results, path_results_csv_file)

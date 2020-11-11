@@ -16,10 +16,10 @@ tf.compat.v1.disable_eager_execution()
 # OPTION 2: maximum memory allocation per session (0-1 = 0-100%)
 tf_ver = tf.__version__
 if tf_ver[0] == "1":
-    gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.9)
+    gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.45)
     sess=tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 elif tf_ver[0] == "2":
-    gpu_options=tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.9)
+    gpu_options=tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.45)
     sess=tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(gpu_options=gpu_options))
 
 
@@ -75,11 +75,24 @@ sample_numbers = [0]
 ##########################################
 # DATA AUGMENTATION and FEATURE EXTRACTION
 # Based on the number of original samples decide how much data augmentation is required by each class
-num_augmentations=[0,7]
+scenario = ['und', 'aug1', 'aug2', 'hyb']
+scenario = scenario[2]
+
+if scenario == 'und':
+    num_augmentations=[0,0]
+elif scenario == 'aug1':
+    num_augmentations=[0,12]
+elif scenario == 'aug2':
+    num_augmentations=[1,25]
+elif scenario == 'hyb':
+    num_augmentations=[0,7]
+else:
+    raise NameError(scenario+' is not a valid scenario')
+
 perform_augmentation = False
 
-path_features = os.path.join(path_data_train, 'features', 'yamnet','yamnet_features_'+patch_hop_seconds_str+'_'+str(num_augmentations[0])+'_'+str(num_augmentations[1]))
-path_labels = os.path.join(path_data_train, 'features', 'yamnet','yamnet_labels_'+patch_hop_seconds_str+'_'+str(num_augmentations[0])+'_'+str(num_augmentations[1]))
+path_features = os.path.join(path_data_train, 'features', 'yamnet','yamnet_features_'+patch_hop_seconds_str+'_'+scenario)
+path_labels = os.path.join(path_data_train, 'features', 'yamnet','yamnet_labels_'+patch_hop_seconds_str+'_'+scenario)
 
 if perform_augmentation == True:
     samples, labels = yamnet_functions.data_augmentation(
@@ -182,13 +195,13 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoa
 # Callbacks
 es = EarlyStopping(monitor='val_loss', mode='min', verbose=1)
 time_now = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-path_yamnet_save_file = os.path.join(path_yamnet_save, time_now+'_yamnet.hdf5')
+path_yamnet_save_file = os.path.join(path_yamnet_save, time_now+'_yamnet_'+patch_hop_seconds_str+'_'+scenario+'.hdf5')
 
 save_best = ModelCheckpoint(path_yamnet_save_file, save_best_only=True, monitor='val_loss', mode='min')
 # log_dir = "logs/{}".format(int(time()))
 # tensorboard = TensorBoard(log_dir=log_dir, histogram_freq=1)
 
-epochs = 1
+epochs = 3000
 val_split = 0.1
 
 time_start = time()
@@ -209,7 +222,7 @@ metadata_headers = ['path_data_train','patch_hop_seconds','samples','aug','sampl
 # metadata_values = np.zeros((1,len(metadata_headers)), dtype=int)
 metadata_values = [path_data_train, params.PATCH_HOP_SECONDS, sample_numbers, num_augmentations, counts.tolist(), num_hidden, opt_type, opt_conf, loss_type, path_yamnet_save, epochs, val_split, train_loss, train_acc, val_loss, val_acc]
 metadata_df = pd.DataFrame([metadata_values],columns=metadata_headers)
-path_metadata = os.path.join(path_yamnet_save, time_now+'_metadata_'+ patch_hop_seconds_str +'_'+str(num_augmentations[0])+'_'+str(num_augmentations[1])+'.csv')
+path_metadata = os.path.join(path_yamnet_save, time_now+'_metadata_'+patch_hop_seconds_str+'_'+scenario+'.csv')
 
 metadata_df.to_csv(path_metadata,index=False)
 
