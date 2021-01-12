@@ -7,6 +7,8 @@ from yamnet_original.yamnet import _YAMNET_LAYER_DEFS
 import tensorflow as tf
 from tensorflow.keras import Model, layers
 
+# Disable eager execution for TF1 compatibility
+tf.compat.v1.disable_eager_execution()
 
 def yamnet(features):
   """Modified core YAMNet model (feature extraction only)
