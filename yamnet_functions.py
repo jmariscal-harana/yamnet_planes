@@ -55,36 +55,46 @@ def get_top_dirs(p):
     dirs = list(filter(lambda x : os.path.isdir( os.path.join(p, x) ), os.listdir(p)))
     return list(map(lambda x : os.path.join(p, x), dirs))
 
-def random_augment_wav(
-    wav_data,
-    DESIRED_SR):
+def random_augment_wav(audio, sr):
+    """
+    Apply random augmentations to the sound:
+        time stretch
+        resample
+        volume change
+        minor random noise 
+        TODO: probably a lot more augmentations you could use 
 
-    # Apply random augmentations to the sound:
-    # -time stretch, resample, volume change, minor noise 
-    # -TODO: probably a lot more augmentations you could use 
+    Parameters
+    ----------
+    audio :
+        Audio to be augmented.
+    sr :
+        Audio sampling rate.
 
-    wav_data = wav_data.copy() 
+    Returns
+    -------
+    audio_aug :
+        Augmented audio.
+    """
+    audio_aug = audio
     
-    # random re-sample 
-    if np.random.uniform() > 0.8:
+    if np.random.uniform() > 0.8: # random stretch 
         stretch = np.random.uniform(0.75, 1.5)
-        wav_data = librosa.effects.time_stretch(wav_data, stretch)
-    elif np.random.uniform() > 0.2:
-        new_sr = int(DESIRED_SR * np.random.uniform(0.9, 1.1))
-        wav_data = resampy.resample(wav_data, DESIRED_SR, new_sr)
+        audio_aug = librosa.effects.time_stretch(audio_aug, stretch)
+    elif np.random.uniform() > 0.2: # random resample 
+        new_sr = int(sr * np.random.uniform(0.9, 1.1))
+        audio_aug = resampy.resample(audio_aug, sr, new_sr)    
     
-    #librosa.effects.pitch_shift()
-    
-    # random volume
+    # Random volume
     volume = np.random.uniform(0.65, 1.2)
-    wav_data = wav_data * volume
+    audio_aug = audio_aug * volume
     
     # Random noise
     if np.random.uniform() > 0.5:
-        NR = 0.001 # 0.001
-        wav_data += np.random.uniform(-NR, NR, size=wav_data.shape)
+        NR = 0.001
+        audio_aug += np.random.uniform(-NR, NR, size=audio_aug.shape)
     
-    return wav_data
+    return audio_aug
 
 
 import glob, resampy
@@ -146,7 +156,8 @@ def sample_count(
 from scipy.io.wavfile import write
 
 def data_augmentation(
-    data_path, 
+    data_path,
+    classes, 
     yamnet_features,
     num_augmentations=[1,1],
     min_sample_seconds=1.0,
@@ -159,16 +170,14 @@ def data_augmentation(
         Y : [ category_idx , ...]
     """
     print("Loading training data, number of augmentations = {}\n".format(num_augmentations))
-    label_dirs = get_top_dirs(data_path)
-
     _samples = []
     _labels = []
     
     MIN_WAV_SIZE = int(DESIRED_SR * min_sample_seconds)
     MAX_WAV_SIZE = int(DESIRED_SR * max_sample_seconds)
     
-    for label_idx, label_dir in enumerate(label_dirs):
-        
+    for label_idx, _class in enumerate(classes):
+        label_dir = os.path.join(data_path, _class)
         label_name = os.path.basename(label_dir)
         wavs = glob.glob(os.path.join(label_dir, "*.wav"))
         print("Loading {:<5}-> '{}'".format(label_idx, label_name))
@@ -265,3 +274,238 @@ def run_models(
 #         seconds_total += seconds
 
 #     print('Folder: {}\nSeconds:  {:.2f}\nMinutes:    {:.2f}\nHours:      {:.2f}'.format(folder,seconds_total,seconds_total/60,seconds_total/3600))
+
+
+# https://github.com/tirthajyoti/Deep-learning-with-Python/blob/master/Notebooks/Custom-real-time-plots-with-callbacks.ipynb
+import tensorflow as tf
+from IPython.display import clear_output
+import matplotlib.pyplot as plt
+class TrainingPlot(tf.keras.callbacks.Callback):
+    def __init__(self, path_save_file):
+        self.path_save_file = path_save_file
+    
+    # This function is called when the training begins
+    def on_train_begin(self, logs={}):
+        # Initialize the lists for holding the logs, losses and metrics
+        self.losses = []
+        self.acc = []
+        self.f1score = []
+        self.precision = []
+        self.recall = []
+        self.logs = []
+    
+    # This function is called at the end of each epoch
+    def on_epoch_end(self, epoch, logs={}):
+        """
+        Calculates and plots Precision, Recall, F1 score
+        """
+        # Extract from the log
+        # tp = logs.get('tp')
+        # fp = logs.get('fp')
+        # fn = logs.get('fn')
+        loss = logs.get('loss')
+        
+        m = self.model
+        # preds = m.predict(X_train)
+        
+        # Calculate
+        # precision = tp/(tp+fp)
+        # recall = tp/(tp+fn)
+        # f1score = 2*(precision*recall)/(precision+recall)    
+        
+        # Append the logs, losses and accuracies to the lists
+        self.logs.append(logs)
+        self.losses.append(loss)
+        # self.f1score.append(f1score)
+        # self.precision.append(precision)
+        # self.recall.append(recall)
+        
+        # Plots every 5th epoch
+        if epoch > 0 and epoch%5==0:
+            
+            # Clear the previous plot
+            clear_output(wait=True)
+            N = np.arange(0, len(self.losses))
+            
+            # You can chose the style of your preference
+            plt.style.use("seaborn")
+            
+            # Plot train loss, train acc, val loss and val acc against epochs passed
+            # plt.figure(figsize=(10,3))
+            # plt.title("Distribution of prediction probabilities at epoch no. {}".format(epoch), 
+            #           fontsize=16)
+            # plt.hist(preds, bins=50,edgecolor='k')
+            
+            plt.figure(figsize=(10,3))
+            plt.title("Loss over epoch")
+            plt.plot(N, self.losses)
+            # fig, ax = plt.subplots(1,3, figsize=(12,4))
+            # ax = ax.ravel()
+            # ax[0].plot(N, self.precision, label = "Precision", c='red')
+            # ax[1].plot(N, self.recall, label = "Recall", c='red')
+            # ax[2].plot(N, self.f1score, label = "F1 score", c='red')
+            # ax[0].set_title("Precision at Epoch No. {}".format(epoch))
+            # ax[1].set_title("Recall at Epoch No. {}".format(epoch))
+            # ax[2].set_title("F1-score at Epoch No. {}".format(epoch))
+            # ax[0].set_xlabel("Epoch #")
+            # ax[1].set_xlabel("Epoch #")
+            # ax[2].set_xlabel("Epoch #")
+            # ax[0].set_ylabel("Precision")
+            # ax[1].set_ylabel("Recall")
+            # ax[2].set_ylabel("F1 score")
+            # ax[0].set_ylim(0,1)
+            # ax[1].set_ylim(0,1)
+            # ax[2].set_ylim(0,1)
+            
+            # Save figure to file
+            plt.savefig(self.path_save_file)
+            plt.savefig('./progress.png')
+
+            # Plot figure (requires ipython)
+            # plt.show()
+
+
+import random
+
+def balance_classes(features, labels):
+    """
+    Remove samples randomly to ensure class balance.
+
+    Parameters
+    ----------
+    features :
+        Samples to be randomised and removed.
+    labels :
+        Labels corresponding to each sample.
+
+    Returns
+    -------
+    features :
+        Samples (balanced).
+    labels :
+        Labels (balanced).
+    """
+    # Randomise sample/label order
+    idxs_random = list(range(len(labels)))
+    random.shuffle(idxs_random)
+    features = [features[i] for i in idxs_random]
+    labels = [labels[i] for i in idxs_random]
+
+    # To ensure a balanced dataset, randomly delete [features,labels] from other classes to match number of features of least frequent class
+    idx_labels, counts = np.unique(labels, return_counts=True)
+    idx_locs_delete = []
+
+    for idx in idx_labels:
+        idx_locs = np.asarray(labels==idx).nonzero()[0]
+
+        if len(idx_locs) > counts.min():
+            idx_locs_delete.append(idx_locs[counts.min():])
+
+    idx_locs_delete = idx_locs_delete[0].tolist()
+    idx_locs_keep = list(set(range(len(features))) - set(idx_locs_delete))
+
+    features = [features[i] for i in idx_locs_keep]
+    labels = [labels[i] for i in idx_locs_keep]
+
+    return features, labels
+
+
+def extract_features(audio_list, yamnet_features):
+    """
+    Extract features for each audio the original yamnet model.
+    
+    Parameters
+    ----------
+    audio_list :
+        Audios whose features will be extracted.
+    yamnet_features :
+        Original yamnet model used to extract audio features.
+
+    Returns
+    -------
+    features_save :
+        Extracted features.
+    """
+    features_save = []
+
+    for audio in audio_list:
+        # Extract features for current audio
+        _, _, dense_out, _ = yamnet_features.predict(np.reshape(audio, [1, -1]), steps=1)
+        
+        # Add features to feature_save
+        samples = []
+        for patch in dense_out:
+            samples.append(patch)
+
+        features_save.append(samples)
+
+    return features_save
+
+
+def save_features(path_audio, sr, path_data_train, patch_hop_seconds_str, num_augmentations, class_idx, yamnet_features):
+    # Read audio waveform
+    audio = read_wav(path_audio, sr, use_rosa=True)
+
+    # Check audio array dimension
+    if audio.ndim > 2:
+        raise Exception('Audio array can only be 1D or 2D.')
+    elif audio.ndim == 2:
+        # Downmix if multichannel
+        audio = np.mean(audio, axis=1)
+
+    # import matplotlib.pyplot as plt; plt.plot(audio); plt.savefig('/home/ups/Proyectos/vigia-sonido/Models/yamnet_planes/audio.png')
+
+    # Avoid zero-padding within get_audio_embedding
+    audio_min_dur = 1
+    audio_curr_dur = max(audio.shape)/sr
+    if audio_curr_dur <= audio_min_dur:
+        print('Audio duration is < {} s for {}. Continue.'.format(audio_min_dur, os.path.basename(path_audio)))
+        return
+
+    # 1. Original audio
+    audio_filename = ('_').join(path_audio.split(os.path.sep)[-2:]).split('.')[0]
+    path_features = os.path.join(path_data_train, 'features', 'yamnet', audio_filename + '_features_' + patch_hop_seconds_str)
+    path_labels = os.path.join(path_data_train, 'features', 'yamnet', audio_filename + '_labels_' +  patch_hop_seconds_str)
+
+    path_features_aug = [path_features + '_00']
+    path_labels_aug = [path_labels + '_00']
+
+    if os.path.isfile(path_features_aug[-1] + '.npy'):
+        audio_list, path_features_save, path_labels_save = [], [], []
+    elif not os.path.isfile(path_features_aug[-1] + '.npy'):
+        audio_list = [audio]
+        path_features_save = path_features_aug.copy()
+        path_labels_save = path_labels_aug.copy()
+
+    # 2. Perform data augmentation on audio
+    for idx_aug in range(num_augmentations[class_idx]):
+        path_features_aug.append(path_features + '_{:02d}'.format(idx_aug+1))
+        path_labels_aug.append(path_labels + '_{:02d}'.format(idx_aug+1))
+        
+        if not os.path.isfile(path_features_aug[-1] + '.npy'):
+            print('Augmenting audio: {}'.format(idx_aug+1))
+            audio_aug = random_augment_wav(audio, sr)
+            audio_list.append(audio_aug)
+            path_features_save.append(path_features_aug[-1])
+            path_labels_save.append(path_labels_aug[-1])
+
+    # Visualise data augmentations
+    # import matplotlib.pyplot as plt
+    # fig, ax = plt.subplots(nrows=2, ncols=2)
+    # for idx_row, row in enumerate(ax):
+    #     for idx_col, col in enumerate(row):
+    #         col.plot(audio_list[idx_row+idx_col+1])
+    # plt.savefig('/home/ups/Proyectos/vigia-sonido/Models/yamnet_planes/audio_aug.png')
+
+    if not audio_list:
+        print('All features were previously extracted for {}. Continue.'.format(audio_filename))
+        return
+
+    features_save = extract_features(audio_list, yamnet_features)
+
+    if len(features_save) != len(path_features_save):
+        raise Exception('The number of extracted features is different from the number of features expected to be saved.')
+
+    for features_tmp, path_features_tmp, path_labels_tmp in zip(features_save, path_features_save, path_labels_save):
+        np.save(path_features_tmp, features_tmp)
+        np.save(path_labels_tmp, np.full((len(features_tmp), 1), class_idx))    
