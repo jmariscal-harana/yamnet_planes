@@ -3,25 +3,6 @@ import pyaudio, librosa
 import numpy as np
 import soundfile as sf
 
-# Convert input waveform to numpy 
-def read_wav(
-    wav_file, 
-    output_sr,
-    use_rosa=True):
-    
-    if use_rosa:
-        waveform, sr = librosa.load(wav_file, sr=output_sr, dtype=np.float32)   # TODO: will np.float64 improve performance?
-    else:
-        wav_data, sr = sf.read(wav_file, dtype=np.int16)
-        if wav_data.ndim > 1: 
-            # (ns, 2)
-            wav_data = wav_data.mean(1)
-        if sr != output_sr:
-            wav_data = resampy.resample(wav_data, sr, output_sr)
-        waveform = wav_data / 32768.0
-    
-    return waveform
-
 
 # Loads sample into chunks of non-silence 
 def remove_silence(
@@ -105,7 +86,6 @@ def sample_count(
     params, 
     min_sample_seconds=1.0,
     max_sample_seconds=5.0,
-    use_rosa=True,
     DESIRED_SR=16000):
     """Loads data from .wav files under data_path to count the number of samples from each class prior 
     to data augmentation.
@@ -126,7 +106,8 @@ def sample_count(
         sample_number = 0
 
         for wav_file in tqdm(wavs):
-            waveform = read_wav(wav_file, DESIRED_SR, use_rosa=use_rosa)    # Read waveform
+            # Read waveform
+            waveform, _ = librosa.load(wav_file, sr=DESIRED_SR, mono=True, dtype=np.float32)
 
             if len(waveform) < MIN_WAV_SIZE:
                 print("\nIgnoring audio shorter than {} seconds".format(min_sample_seconds))
@@ -162,7 +143,6 @@ def data_augmentation(
     num_augmentations=[1,1],
     min_sample_seconds=1.0,
     max_sample_seconds=5.0,
-    use_rosa=True,
     DESIRED_SR=16000):
     """Loads data from .wav files under data_path using subfolder names as labels,
     then runs them through yamnet_features to get feature vectors and returns them:
@@ -183,7 +163,9 @@ def data_augmentation(
         print("Loading {:<5}-> '{}'".format(label_idx, label_name))
 
         for wav_file in tqdm(wavs):
-            waveform = read_wav(wav_file, DESIRED_SR, use_rosa=use_rosa)
+            # Read waveform
+            waveform, _ = librosa.load(wav_file, sr=DESIRED_SR, mono=True, dtype=np.float32)
+
 
             if len(waveform) < MIN_WAV_SIZE:
                 print("\nIgnoring audio shorter than {} seconds".format(min_sample_seconds))
@@ -287,8 +269,10 @@ class TrainingPlot(tf.keras.callbacks.Callback):
     # This function is called when the training begins
     def on_train_begin(self, logs={}):
         # Initialize the lists for holding the logs, losses and metrics
-        self.losses = []
         self.acc = []
+        self.loss = []
+        self.val_acc = []
+        self.val_loss = []
         self.f1score = []
         self.precision = []
         self.recall = []
@@ -303,9 +287,12 @@ class TrainingPlot(tf.keras.callbacks.Callback):
         # tp = logs.get('tp')
         # fp = logs.get('fp')
         # fn = logs.get('fn')
+        acc = logs.get('acc')
         loss = logs.get('loss')
+        val_acc = logs.get('val_acc')
+        val_loss = logs.get('val_loss')
         
-        m = self.model
+        # m = self.model
         # preds = m.predict(X_train)
         
         # Calculate
@@ -315,7 +302,10 @@ class TrainingPlot(tf.keras.callbacks.Callback):
         
         # Append the logs, losses and accuracies to the lists
         self.logs.append(logs)
-        self.losses.append(loss)
+        self.acc.append(acc)
+        self.loss.append(loss)
+        self.val_acc.append(val_acc)
+        self.val_loss.append(val_loss)
         # self.f1score.append(f1score)
         # self.precision.append(precision)
         # self.recall.append(recall)
@@ -324,8 +314,8 @@ class TrainingPlot(tf.keras.callbacks.Callback):
         if epoch > 0 and epoch%5==0:
             
             # Clear the previous plot
-            clear_output(wait=True)
-            N = np.arange(0, len(self.losses))
+            # clear_output(wait=True)
+            x_epoch = np.arange(0, len(self.loss))
             
             # You can chose the style of your preference
             plt.style.use("seaborn")
@@ -336,14 +326,34 @@ class TrainingPlot(tf.keras.callbacks.Callback):
             #           fontsize=16)
             # plt.hist(preds, bins=50,edgecolor='k')
             
-            plt.figure(figsize=(10,3))
-            plt.title("Loss over epoch")
-            plt.plot(N, self.losses)
+            # plt.figure(figsize=(10,3))
+            # plt.title("Training loss over epoch")
+            # plt.plot(x_epoch, self.loss)
+
+            fig, ax1 = plt.subplots()
+            color = 'tab:red'
+            ax1.set_xlabel('epoch')
+            ax1.set_ylabel('loss', color=color)
+            ax1.plot(x_epoch, self.loss, color=color, label='loss')
+            ax1.plot(x_epoch, self.val_loss, color=color, linestyle='dashed', label='val_loss')
+            ax1.tick_params(axis='y', labelcolor=color)
+            ax1.legend(loc=2)
+
+            ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+            color = 'tab:blue'
+            ax2.set_ylabel('accuracy', color=color)  # we already handled the x-label with ax1
+            ax2.plot(x_epoch, self.acc, color=color, label='acc')
+            ax2.plot(x_epoch, self.val_acc, color=color, linestyle='dashed', label='val_acc')
+            ax2.tick_params(axis='y', labelcolor=color)
+            ax2.legend(loc=1)
+
+            fig.tight_layout()  # otherwise the right y-label is slightly clipped
+
             # fig, ax = plt.subplots(1,3, figsize=(12,4))
             # ax = ax.ravel()
-            # ax[0].plot(N, self.precision, label = "Precision", c='red')
-            # ax[1].plot(N, self.recall, label = "Recall", c='red')
-            # ax[2].plot(N, self.f1score, label = "F1 score", c='red')
+            # ax[0].plot(x_epoch, self.precision, label = "Precision", c='red')
+            # ax[1].plot(x_epoch, self.recall, label = "Recall", c='red')
+            # ax[2].plot(x_epoch, self.f1score, label = "F1 score", c='red')
             # ax[0].set_title("Precision at Epoch No. {}".format(epoch))
             # ax[1].set_title("Recall at Epoch No. {}".format(epoch))
             # ax[2].set_title("F1-score at Epoch No. {}".format(epoch))
@@ -360,6 +370,7 @@ class TrainingPlot(tf.keras.callbacks.Callback):
             # Save figure to file
             plt.savefig(self.path_save_file)
             plt.savefig('./progress.png')
+            plt.close()
 
             # Plot figure (requires ipython)
             # plt.show()
@@ -396,13 +407,13 @@ def balance_classes(features, labels):
     idx_locs_delete = []
 
     for idx in idx_labels:
-        idx_locs = np.asarray(labels==idx).nonzero()[0]
+        idx_locs = np.array(labels==idx).nonzero()[0]
 
         if len(idx_locs) > counts.min():
             idx_locs_delete.append(idx_locs[counts.min():])
 
     idx_locs_delete = idx_locs_delete[0].tolist()
-    idx_locs_keep = list(set(range(len(features))) - set(idx_locs_delete))
+    idx_locs_keep = list(set(range(len(labels))) - set(idx_locs_delete))
 
     features = [features[i] for i in idx_locs_keep]
     labels = [labels[i] for i in idx_locs_keep]
@@ -423,10 +434,10 @@ def extract_features(audio_list, yamnet_features):
 
     Returns
     -------
-    features_save :
+    features_extracted :
         Extracted features.
     """
-    features_save = []
+    features_extracted = []
 
     for audio in audio_list:
         # Extract features for current audio
@@ -437,26 +448,19 @@ def extract_features(audio_list, yamnet_features):
         for patch in dense_out:
             samples.append(patch)
 
-        features_save.append(samples)
+        features_extracted.append(samples)
 
-    return features_save
+    return features_extracted
 
 
-def save_features(path_audio, sr, path_data_train, patch_hop_seconds_str, num_augmentations, class_idx, yamnet_features):
+def save_features(path_audio, sr, audio_min_dur, path_data_train, patch_hop_seconds_str, num_augmentations, class_idx, yamnet_features):
     # Read audio waveform
-    audio = read_wav(path_audio, sr, use_rosa=True)
-
-    # Check audio array dimension
-    if audio.ndim > 2:
-        raise Exception('Audio array can only be 1D or 2D.')
-    elif audio.ndim == 2:
-        # Downmix if multichannel
-        audio = np.mean(audio, axis=1)
-
+    audio, _ = librosa.load(path_audio, sr=sr, mono=True, dtype=np.float32)
+    
+    # Visualise audio
     # import matplotlib.pyplot as plt; plt.plot(audio); plt.savefig('/home/ups/Proyectos/vigia-sonido/Models/yamnet_planes/audio.png')
 
     # Avoid zero-padding within get_audio_embedding
-    audio_min_dur = 1
     audio_curr_dur = max(audio.shape)/sr
     if audio_curr_dur <= audio_min_dur:
         print('Audio duration is < {} s for {}. Continue.'.format(audio_min_dur, os.path.basename(path_audio)))
@@ -465,29 +469,24 @@ def save_features(path_audio, sr, path_data_train, patch_hop_seconds_str, num_au
     # 1. Original audio
     audio_filename = ('_').join(path_audio.split(os.path.sep)[-2:]).split('.')[0]
     path_features = os.path.join(path_data_train, 'features', 'yamnet', audio_filename + '_features_' + patch_hop_seconds_str)
-    path_labels = os.path.join(path_data_train, 'features', 'yamnet', audio_filename + '_labels_' +  patch_hop_seconds_str)
 
     path_features_aug = [path_features + '_00']
-    path_labels_aug = [path_labels + '_00']
 
     if os.path.isfile(path_features_aug[-1] + '.npy'):
-        audio_list, path_features_save, path_labels_save = [], [], []
-    elif not os.path.isfile(path_features_aug[-1] + '.npy'):
+        audio_list, path_features_save = [], []
+    else:
         audio_list = [audio]
         path_features_save = path_features_aug.copy()
-        path_labels_save = path_labels_aug.copy()
 
     # 2. Perform data augmentation on audio
     for idx_aug in range(num_augmentations[class_idx]):
         path_features_aug.append(path_features + '_{:02d}'.format(idx_aug+1))
-        path_labels_aug.append(path_labels + '_{:02d}'.format(idx_aug+1))
         
         if not os.path.isfile(path_features_aug[-1] + '.npy'):
             print('Augmenting audio: {}'.format(idx_aug+1))
             audio_aug = random_augment_wav(audio, sr)
             audio_list.append(audio_aug)
             path_features_save.append(path_features_aug[-1])
-            path_labels_save.append(path_labels_aug[-1])
 
     # Visualise data augmentations
     # import matplotlib.pyplot as plt
@@ -506,6 +505,5 @@ def save_features(path_audio, sr, path_data_train, patch_hop_seconds_str, num_au
     if len(features_save) != len(path_features_save):
         raise Exception('The number of extracted features is different from the number of features expected to be saved.')
 
-    for features_tmp, path_features_tmp, path_labels_tmp in zip(features_save, path_features_save, path_labels_save):
+    for features_tmp, path_features_tmp in zip(features_save, path_features_save):
         np.save(path_features_tmp, features_tmp)
-        np.save(path_labels_tmp, np.full((len(features_tmp), 1), class_idx))    
