@@ -36,7 +36,9 @@ path_yamnet_results = os.path.join(path_root, 'Results', dataset, 'yamnet')
 
 assert os.path.exists(path_yamnet)
 assert os.path.exists(path_data_test)
+assert os.path.exists(path_data_csv)
 assert os.path.exists(path_yamnet_save)
+assert os.path.exists(path_yamnet_results)
 
 sys.path.append(path_yamnet)
 
@@ -149,7 +151,7 @@ for model_idx, model_name in enumerate(models_to_load):
                 
             detection_rate = np.append(detection_rate, sum(predicted_class == class_idx) / len(predicted_class)*100)
             print('True positive rate for {} class: {:4.2f}%'.format(class_label, detection_rate[class_idx]))
-            print('False positive rate for {} class: {:4.2f}%'.format(class_label, 100-detection_rate[class_idx]))
+            print('False negative rate for {} class: {:4.2f}%'.format(class_label, 100-detection_rate[class_idx]))
 
 
     # Method 2: apply moving threshold for ROC plots
@@ -165,7 +167,6 @@ for model_idx, model_name in enumerate(models_to_load):
         classes = np.unique(df_data_csv.iloc[:,1]).tolist()
 
         for class_idx, class_label in enumerate(classes):
-            path_class = os.path.join(path_data_test, class_label)
             df_data_csv_class = df_data_csv[df_data_csv.iloc[:,1]==class_label]
             path_audios =  df_data_csv_class.iloc[:,0].tolist()
 
@@ -202,7 +203,7 @@ for model_idx, model_name in enumerate(models_to_load):
 
             for loc, prediction_threshold in enumerate(prediction_thresholds):
                 print('True positive rate for {} class (threshold = {:.2f}): {:4.2f}%'.format(class_label, prediction_threshold[0], detection_rate[loc, class_idx]))
-                print('False positive rate for {} class (threshold = {:.2f}): {:4.2f}%'.format(class_label, prediction_threshold[0], 100-detection_rate[loc, class_idx]))
+                print('False negative rate for {} class (threshold = {:.2f}): {:4.2f}%'.format(class_label, prediction_threshold[0], 100-detection_rate[loc, class_idx]))
 
 
     ##########################################
